@@ -190,10 +190,20 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-// Menú contextual propio: se desactiva el del navegador fuera de los campos de texto.
+// Menú contextual: el del sistema se desactiva en la interfaz (botones, listas…),
+// pero se respeta en los campos de texto y siempre que haya texto seleccionado
+// (prosa en modo lectura, propuestas, chat, agente, Codex…) para poder copiar,
+// buscar o usar los servicios del sistema. Los menús propios (editor, árbol)
+// llaman a preventDefault antes y no llegan aquí.
 document.addEventListener("contextmenu", (e) => {
-  if (!(e.target as HTMLElement).closest("input, textarea") && !import.meta.env.DEV) e.preventDefault();
+  if (e.defaultPrevented || import.meta.env.DEV) return;
+  const destino = e.target as HTMLElement;
+  if (destino.closest?.("input, textarea, [contenteditable='true']")) return;
+  const sel = window.getSelection();
+  if (sel && !sel.isCollapsed && sel.toString().trim()) return;
+  e.preventDefault();
 });
+
 
 window.addEventListener("beforeunload", () => void vaciarGuardado());
 

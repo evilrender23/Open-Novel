@@ -372,6 +372,7 @@ class EditorEscena {
   private longitud = localStorage.getItem("longitud-beat") ?? "400";
   private modeloBeat = "";
   private capaBusqueda: HTMLElement;
+  private selDerecho: { a: number; b: number } | null = null;
   private buscador: Buscador;
 
   constructor(
@@ -414,6 +415,18 @@ class EditorEscena {
     this.ta.addEventListener("input", () => this.alEscribir());
     for (const ev of ["keyup", "mouseup", "select", "focus"]) this.ta.addEventListener(ev, () => this.alSeleccionar());
     this.ta.addEventListener("keydown", (e) => this.atajos(e));
+    // El botón derecho (o ⌃clic) mueve el cursor en el mousedown y la selección
+    // se pierde antes del menú: si hay texto seleccionado, se conserva.
+    this.ta.addEventListener("mousedown", (e) => {
+      const derecho = e.button === 2 || (e.button === 0 && e.ctrlKey);
+      if (!derecho) return;
+      const a = this.ta.selectionStart;
+      const b = this.ta.selectionEnd;
+      if (b > a) {
+        e.preventDefault();
+        this.selDerecho = { a, b };
+      } else this.selDerecho = null;
+    });
     this.ta.addEventListener("contextmenu", (e) => this.menuContextual(e));
     this.ta.addEventListener("blur", () => window.setTimeout(() => this.alSeleccionar(), 150));
     requestAnimationFrame(() => {
@@ -573,8 +586,11 @@ class EditorEscena {
   }
 
   private menuContextual(e: MouseEvent): void {
-    const a = this.ta.selectionStart;
-    const b = this.ta.selectionEnd;
+    const guardada = this.selDerecho;
+    this.selDerecho = null;
+    const a = guardada?.a ?? this.ta.selectionStart;
+    const b = guardada?.b ?? this.ta.selectionEnd;
+    if (guardada) this.ta.setSelectionRange(a, b);
     const sel = this.ta.value.slice(a, b).trim();
     const items: ItemMenu[] = [];
     if (sel) {
