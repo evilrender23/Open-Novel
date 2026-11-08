@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="f" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#161b22"/>
+      <stop offset="1" stop-color="#0d1117"/>
+    </linearGradient>
+  </defs>
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="url(#f)"/>
+  <rect x="64.5" y="64.5" width="895" height="895" rx="199.5" fill="none" stroke="#ffffff" stroke-opacity=".08"/>
+  <!-- Libro abierto -->
+  <path d="M512 330c-70-46-170-62-266-50v400c96-12 196 4 266 50z" fill="#e6edf3"/>
+  <path d="M512 330c70-46 170-62 266-50v400c-96-12-196 4-266 50z" fill="#c9d1d9"/>
+  <!-- Pluma / acento -->
+  <path d="M512 330v400" stroke="#0d1117" stroke-width="10"/>
+  <circle cx="512" cy="230" r="34" fill="#4a84fe"/>
+  <path d="M300 380h150M300 440h150M300 500h110M574 380h150M574 440h150M574 500h110" stroke="#0d1117" stroke-opacity=".35" stroke-width="18" stroke-linecap="round"/>
+</svg>

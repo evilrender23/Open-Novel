@@ -1,0 +1,27 @@
+[package]
+name = "open-novel"
+version = "0.1.0"
+description = "Open Novel: entorno de escritura de novelas de código abierto con Codex, IA y modo agente con Claude Code."
+edition = "2024"
+license = "MIT"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.13", default-features = false, features = ["native-tls", "http2", "system-proxy", "gzip", "stream"] }
+tokio = { version = "1", features = ["macros", "process", "io-util", "rt-multi-thread", "sync", "time", "fs"] }
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+which = "8"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true
