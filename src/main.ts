@@ -14,7 +14,7 @@ import { abrirAjustes } from "./views/ajustes";
 import { pantallaBiblioteca } from "./views/biblioteca";
 import { vistaChat } from "./views/chat";
 import { vistaCodex } from "./views/codex";
-import { abrirEntrada, abrirEscena, vistaEscribir } from "./views/escribir";
+import { abrirEntrada, abrirEscena, atajoBuscar, vistaEscribir } from "./views/escribir";
 import { vistaExportar } from "./views/exportar";
 import { vistaNotas } from "./views/notas";
 import { abrirMetadatos, vistaPlanificar } from "./views/planificar";
@@ -75,6 +75,8 @@ function comandos(): Comando[] {
     { texto: "Ajustes", grupo: "Acciones", icono: "settings", accion: () => abrirAjustes(), extra: "⌘," },
     { texto: "Datos de la novela", grupo: "Acciones", icono: "book", accion: () => abrirMetadatos() },
     { texto: "Modo foco", grupo: "Acciones", icono: "focus", accion: () => modoFoco(), extra: "⌘⇧F" },
+    { texto: "Buscar en el escrito", grupo: "Acciones", icono: "search", accion: () => (irA("escribir"), window.setTimeout(() => atajoBuscar("buscar"), 30)), extra: "⌘F" },
+    { texto: "Buscar y reemplazar", grupo: "Acciones", icono: "search", accion: () => (irA("escribir"), window.setTimeout(() => atajoBuscar("reemplazar"), 30)), extra: "⌘⌥F" },
     { texto: "Volver a la biblioteca", grupo: "Acciones", icono: "library", accion: () => void irBiblioteca() },
   );
   const n = novela();
@@ -163,6 +165,13 @@ document.addEventListener("keydown", (e) => {
     return;
   }
   const k = e.key.toLowerCase();
+  // Buscar en el escrito: ⌘F, ⌘⌥F (reemplazar), ⌘G / ⇧⌘G (siguiente / anterior).
+  if (e.code === "KeyF" && !e.shiftKey && estado.vista === "escribir" && !document.querySelector(".modal-backdrop")) {
+    if (atajoBuscar(e.altKey ? "reemplazar" : "buscar")) return e.preventDefault();
+  }
+  if (e.code === "KeyG" && estado.vista === "escribir") {
+    if (atajoBuscar(e.shiftKey ? "anterior" : "siguiente")) return e.preventDefault();
+  }
   if (k === "k") {
     e.preventDefault();
     abrirPaleta();

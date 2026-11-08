@@ -22,7 +22,7 @@ framework + Rust).
 | **Exportar** | EPUB 3, HTML imprimible (→ PDF), Markdown, texto plano y copia de seguridad completa. |
 | **IA** | Claude Code CLI (usa tu suscripción, sin clave), Anthropic, OpenAI, OpenRouter, Ollama y cualquier API compatible con OpenAI. Modelo por función (escritura, chat, Codex, resúmenes). |
 
-Otros: paleta de comandos **⌘K**, atajos ⌘1…⌘8, ⌘, (ajustes), ⌘⇧F (foco), ⌘S, tema
+Otros: **buscar y reemplazar** en la escena o en toda la novela (⌘F, ⌘⌥F, ⌘G; sin distinguir acentos por defecto), paleta de comandos **⌘K**, atajos ⌘1…⌘8, ⌘, (ajustes), ⌘⇧F (foco), ⌘S, tema
 claro/oscuro/sistema con acentos, tipografía del editor configurable, estadísticas
 de palabras diarias y objetivo de la novela.
 

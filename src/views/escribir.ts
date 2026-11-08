@@ -28,11 +28,26 @@ import {
   renombrar,
 } from "../estructura";
 import { api } from "../api";
+import { Buscador } from "../buscador";
 import { markdown } from "../markdown";
 import { buscarEscena, contarPalabras, entradaNueva, ESTADOS, todasLasEscenas, TIPOS_CODEX, type AccionPrompt, type TipoCodex } from "../modelo";
 import { generarDirecto, Propuesta } from "../propuesta";
 import { irA, modoFoco, type ResultadoVista, actualizarEstado } from "../shell";
 import { btn, confirmar, errMsg, fechaCorta, h, icon, menu, modal, num, select, toast, vacio, type ItemMenu } from "../ui";
+
+let editorActivo: EditorEscena | null = null;
+
+/** ⌘F / ⌘⌥F / ⌘G desde los atajos globales. Devuelve false si no hay editor. */
+export function atajoBuscar(accion: "buscar" | "reemplazar" | "siguiente" | "anterior"): boolean {
+  const ed = editorActivo;
+  if (!ed) return false;
+  if (lectura) {
+    toast("Sal del modo lectura para buscar en el texto.", "info");
+    return true;
+  }
+  ed.buscar(accion);
+  return true;
+}
 
 const plegados = new Set<string>(JSON.parse(localStorage.getItem("plegados") ?? "[]") as string[]);
 let lectura = false;
@@ -51,7 +66,8 @@ export function vistaEscribir(): ResultadoVista {
   const columna = h("div", { class: "ed-column" });
   const scroller = h("div", { class: "ed-scroll" }, columna);
   const panel = h("aside", { class: "ed-panel" });
-  const principal = h("div", { class: `write${panelVisible ? "" : " no-panel"}` }, scroller, panel);
+  const area = h("div", { class: "ed-area" }, scroller);
+  const principal = h("div", { class: `write${panelVisible ? "" : " no-panel"}` }, area, panel);
 
   let editor: EditorEscena | null = null;
   let timerArbol = 0;
@@ -168,7 +184,7 @@ export function vistaEscribir(): ResultadoVista {
       panel.replaceChildren();
       return;
     }
-    editor = new EditorEscena(u.escena.id, columna, panel, {
+    editor = editorActivo = new EditorEscena(u.escena.id, columna, panel, {
       alCambiarTexto: () => {
         const fila = arbol.querySelector<HTMLElement>(`[data-escena="${u.escena.id}"] .tree-meta`);
         if (fila) fila.textContent = num(palabrasEscena(u.escena.id));
@@ -290,6 +306,7 @@ export function vistaEscribir(): ResultadoVista {
     desmontar: () => {
       editor?.guardarYa();
       editor?.destruir();
+      editorActivo = null;
       ocultarTarjeta();
     },
   };
@@ -354,6 +371,8 @@ class EditorEscena {
   private propuesta: Propuesta | null = null;
   private longitud = localStorage.getItem("longitud-beat") ?? "400";
   private modeloBeat = "";
+  private capaBusqueda: HTMLElement;
+  private buscador: Buscador;
 
   constructor(
     private id: string,
@@ -366,12 +385,13 @@ class EditorEscena {
     this.ta = h("textarea", { class: "ed-text", spellcheck: true, placeholder: "Empieza a escribir… o describe un beat abajo y deja que la IA te proponga prosa." });
     this.ta.value = n.textos.get(id) ?? "";
     this.fondo = h("div", { class: "ed-backdrop", attrs: { "aria-hidden": "true" } });
+    this.capaBusqueda = h("div", { class: "ed-backdrop ed-find-layer", attrs: { "aria-hidden": "true" } });
     this.zonaPropuesta = h("div", { class: "ed-proposals" });
     this.barraSel = h("div", { class: "selbar", hidden: true });
     this.beat = h("textarea", { class: "composer-input", rows: 1, placeholder: "Beat: ¿qué ocurre a continuación? (⌘↵ genera prosa)" });
 
     this.refrescarCabecera();
-    const cuerpo = lectura ? this.vistaLectura() : h("div", { class: "ed-wrap" }, this.fondo, this.ta);
+    const cuerpo = lectura ? this.vistaLectura() : h("div", { class: "ed-wrap" }, this.fondo, this.capaBusqueda, this.ta);
     this.columna.replaceChildren(
       this.cabecera,
       cuerpo,
@@ -380,6 +400,16 @@ class EditorEscena {
       this.navegacion(),
     );
     this.columna.append(this.barraSel);
+    const scroller = this.columna.parentElement!;
+    this.buscador = new Buscador({
+      escenaId: id,
+      textarea: this.ta,
+      capa: this.capaBusqueda,
+      scroller,
+      anclaje: scroller.parentElement ?? scroller,
+      reemplazar: (a, b, t) => this.aplicar(a, b, t),
+      abrirEscena: (escena) => this.cb.seleccionar(escena),
+    });
 
     this.ta.addEventListener("input", () => this.alEscribir());
     for (const ev of ["keyup", "mouseup", "select", "focus"]) this.ta.addEventListener(ev, () => this.alSeleccionar());
@@ -393,7 +423,14 @@ class EditorEscena {
     this.refrescarPanel();
   }
 
+  buscar(accion: "buscar" | "reemplazar" | "siguiente" | "anterior"): void {
+    if (accion === "buscar") this.buscador.abrir();
+    else if (accion === "reemplazar") this.buscador.mostrarReemplazo(true);
+    else this.buscador.siguiente(accion === "siguiente" ? 1 : -1);
+  }
+
   destruir(): void {
+    this.buscador.cerrar(false);
     cancelAnimationFrame(this.raf);
     this.propuesta?.cerrar();
   }
@@ -442,6 +479,7 @@ class EditorEscena {
     this.raf = requestAnimationFrame(() => this.pintarFondo());
     guardarTexto(this.id, this.ta.value);
     this.cb.alCambiarTexto();
+    this.buscador.alCambiarTexto();
     this.cursor = this.ta.selectionEnd;
     window.clearTimeout(this.timerPanel);
     this.timerPanel = window.setTimeout(() => this.refrescarPanel(), 800);
