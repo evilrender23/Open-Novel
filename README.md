@@ -47,6 +47,12 @@ instala. Si falta algo para compilar (Git, Node.js 20.19+, Rust y, según el sis
 las Build Tools de C++, las herramientas de Xcode o WebKitGTK) lo instala solo,
 avisando de que es una dependencia.
 
+También instala **Claude Code CLI** (la IA por defecto y el modo agente) con el instalador
+oficial de Anthropic en `~/.local/bin` (Windows: `%USERPROFILE%\.local\bin`), sin sudo. No hace
+falta para compilar: si no se puede instalar, Open Novel se instala igual y te dice cómo
+hacerlo luego. La primera vez hay que iniciar sesión: abre una terminal, ejecuta `claude` y entra
+con tu cuenta (el instalador te lo recuerda si falta).
+
 **macOS y Linux:**
 
 ```

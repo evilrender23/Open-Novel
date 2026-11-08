@@ -262,6 +262,28 @@ instalar_node() {
     export PATH="$NODE_PROPIO/bin:$PATH"
 }
 
+# Claude Code CLI: la IA por defecto de Open Novel y el modo agente (no hace falta para compilar).
+# Se instala con el instalador oficial de Anthropic en ~/.local/bin, sin sudo. Si falla, sólo se avisa:
+# la app funciona con otros proveedores. Durante las actualizaciones automáticas no se reintenta
+# cada vez (registro/claude-omitido); al ejecutar el instalador a mano, sí.
+CLAUDE_NUEVO=false
+hay_claude() { tiene claude || [ -x "$HOME/.local/bin/claude" ] || [ -x "$HOME/.claude/local/claude" ]; }
+asegurar_claude() {
+    hay_claude && { rm -f "$REGISTRO/claude-omitido"; return 0; }
+    if ! $INTERACTIVO && [ -e "$REGISTRO/claude-omitido" ]; then return 0; fi
+    anotar "PASO 1/$TOTAL Instalando Claude Code CLI (dependencia de la IA y del modo agente)"
+    avisar 'Dependencia de Open Novel: falta Claude Code CLI (la IA por defecto y el modo agente); se instala con el instalador oficial de Anthropic en ~/.local/bin.'
+    if ejecutar "$DESTINO" bash -c 'curl -fsSL https://claude.ai/install.sh | bash' && hay_claude; then
+        rm -f "$REGISTRO/claude-omitido"
+        CLAUDE_NUEVO=true
+        $INTERACTIVO && printf '\033[32mListo: Claude Code CLI.\033[0m\n'
+    else
+        : > "$REGISTRO/claude-omitido"
+        avisar "Aviso: no se pudo instalar Claude Code CLI (detalles en $LOG). Open Novel se instala igual; puedes instalarlo luego con: curl -fsSL https://claude.ai/install.sh | bash"
+    fi
+    return 0
+}
+
 # Todo lo que falte se instala solo, avisando de qué es y para qué hace falta. Node.js va aparte
 # (asegurar_node) porque se instala en <destino>/node.
 if $LINUX; then REQUISITOS='sistema rust'; else REQUISITOS='xcode rust'; fi
@@ -424,10 +446,11 @@ principal() {
     : > "$LOG"
     : > "$ESTADO"
 
-    if $LINUX; then paso 1 'Comprobando el compilador de C, Git, WebKitGTK, Rust y Node.js'
-    else paso 1 'Comprobando las herramientas de Xcode, Git, Rust y Node.js'; fi
+    if $LINUX; then paso 1 'Comprobando el compilador de C, Git, WebKitGTK, Rust, Node.js y Claude Code'
+    else paso 1 'Comprobando las herramientas de Xcode, Git, Rust, Node.js y Claude Code'; fi
     comprobar_requisitos
     asegurar_node
+    asegurar_claude
     guardar_rutas
 
     paso 2 "Descargando el código ($RAMA)"
@@ -528,6 +551,10 @@ principal() {
         echo "Ábrelo desde Launchpad, Spotlight o la carpeta Aplicaciones."
     fi
     echo 'Se actualiza sola: cuando haya cambios en GitHub, los compila y los instala al reiniciarla.'
+    # Claude Code necesita iniciar sesión una vez (cuenta de Claude o clave de API).
+    if hay_claude && ! grep -q '"oauthAccount"' "$HOME/.claude.json" 2>/dev/null && [ -z "${ANTHROPIC_API_KEY:-}" ]; then
+        printf '\033[33m%s\033[0m\n' 'Falta un paso para usar la IA con Claude: abre una terminal, ejecuta  claude  e inicia sesión con tu cuenta (sólo la primera vez).'
+    fi
 }
 
 # En la misma línea: bash lee el script según avanza, y git puede haberlo cambiado mientras tanto.

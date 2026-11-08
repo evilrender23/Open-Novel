@@ -184,6 +184,36 @@ function Asegurar-Node {
     if ($interactivo) { Write-Host "Node.js $(& node --version) instalado." -ForegroundColor Green }
 }
 
+# Claude Code CLI: la IA por defecto de Open Novel y el modo agente (no hace falta para compilar).
+# Instalador oficial de Anthropic (en %USERPROFILE%\.local\bin, sin administrador). Si falla sólo se
+# avisa; en las actualizaciones automáticas no se reintenta cada vez (registro\claude-omitido).
+function Hay-Claude {
+    (Tiene claude) -or (Test-Path (Join-Path $env:USERPROFILE '.local\bin\claude.exe'))
+}
+function Asegurar-Claude {
+    $omitido = Join-Path $registro 'claude-omitido'
+    if (Hay-Claude) { Remove-Item $omitido -ErrorAction SilentlyContinue; return }
+    if (-not $interactivo -and (Test-Path $omitido)) { return }
+    Anotar "PASO 1/$TOTAL Instalando Claude Code CLI (dependencia de la IA y del modo agente)"
+    Avisar 'Dependencia de Open Novel: falta Claude Code CLI (la IA por defecto y el modo agente); se instala con el instalador oficial de Anthropic.'
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+        $script = (Invoke-WebRequest -UseBasicParsing 'https://claude.ai/install.ps1').Content
+        $tmp = Join-Path ([IO.Path]::GetTempPath()) 'claude-install.ps1'
+        [IO.File]::WriteAllText($tmp, $script, $utf8)
+        try { Ejecutar powershell.exe @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $tmp) $Destino -SinComprobar }
+        finally { Remove-Item $tmp -Force -ErrorAction SilentlyContinue }
+        Refrescar-Path
+    } catch { }
+    if (Hay-Claude) {
+        Remove-Item $omitido -ErrorAction SilentlyContinue
+        if ($interactivo) { Write-Host 'Listo: Claude Code CLI.' -ForegroundColor Green }
+    } else {
+        [IO.File]::WriteAllText($omitido, '', $utf8)
+        Avisar "Aviso: no se pudo instalar Claude Code CLI (detalles en $logCompilacion). Open Novel se instala igual; puedes instalarlo luego con: irm https://claude.ai/install.ps1 | iex"
+    }
+}
+
 function Con-Winget([string]$id, [string[]]$extra = @()) {
     # winget sale con códigos raros aunque instale; lo que vale es que luego se encuentre.
     Ejecutar winget (@('install', '--id', $id, '-e', '--source', 'winget', '--accept-package-agreements', '--accept-source-agreements') + $extra) $Destino -SinComprobar
@@ -332,9 +362,10 @@ function Principal {
     [IO.File]::WriteAllText($logCompilacion, '', $utf8)
     [IO.File]::WriteAllText($log, '', $utf8)
 
-    Paso 1 'Comprobando Git, las Build Tools de C++, Rust y Node.js'
+    Paso 1 'Comprobando Git, las Build Tools de C++, Rust, Node.js y Claude Code'
     Comprobar-Requisitos
     Asegurar-Node
+    Asegurar-Claude
 
     Paso 2 "Descargando el código ($Rama)"
     Descargar-Codigo
@@ -386,6 +417,10 @@ function Principal {
 
     Write-Host "Open Novel $($commit.Substring(0, 7)) instalado en $app." -ForegroundColor Green
     Write-Host 'Ábrelo desde el menú Inicio. Se actualiza sola: cuando haya cambios en GitHub, los compila y los instala al reiniciarla.'
+    $config = Join-Path $env:USERPROFILE '.claude.json'
+    if ((Hay-Claude) -and -not $env:ANTHROPIC_API_KEY -and -not ((Test-Path $config) -and (Select-String -Path $config -Pattern '"oauthAccount"' -Quiet))) {
+        Write-Host 'Falta un paso para usar la IA con Claude: abre una consola, ejecuta  claude  e inicia sesión con tu cuenta (sólo la primera vez).' -ForegroundColor Yellow
+    }
 }
 
 $resultado = 0
