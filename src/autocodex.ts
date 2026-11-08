@@ -19,20 +19,24 @@ interface Campo {
   clave: string;
   valor: string;
 }
+interface Relacion {
+  nombre: string;
+  vinculo: string; // «hermana de», «vive en»… (puede ir vacío)
+}
 interface PropuestaNueva {
   tipo: TipoCodex;
   nombre: string;
   alias: string[];
   descripcion: string;
   campos: Campo[];
-  relaciones: string[];
+  relaciones: Relacion[];
 }
 interface PropuestaAmpliar {
   id: string; // entrada existente
   alias: string[];
   campos: Campo[];
   datos: string[];
-  relaciones: string[];
+  relaciones: Relacion[];
 }
 interface Resultado {
   nuevas: PropuestaNueva[];
@@ -134,13 +138,13 @@ Reglas:
 - Entradas nuevas solo para elementos con peso en la historia (que actúan, se repiten o importan). No crees entradas para figurantes de una sola mención sin importancia.
 - Campos: pares clave/valor cortos (p. ej. Edad, Ocupación, Aspecto, Familia, Ubicación, Dueño). Valores de una línea.
 - "datos": hechos nuevos de una o dos frases sobre una entrada existente que no estén en su descripción ni en sus campos.
-- "relaciones": nombres de otras entradas (existentes o nuevas) con las que tiene una relación clara en el texto.
+- "relaciones": otras entradas (existentes o nuevas) con las que tiene una relación clara en el texto, con el tipo de vínculo visto desde esta entrada en pocas palabras ("hermana de", "vive en", "trabaja para", "posee"); vínculo vacío si no está claro.
 - Tipos válidos: ${tipos}.
 - Las descripciones, breves (2-4 frases) y útiles para escribir.
 
 Devuelve SOLO un objeto JSON, sin texto alrededor, con esta forma:
-{"nuevas":[{"tipo":"personaje","nombre":"…","alias":["…"],"descripcion":"…","campos":[{"clave":"…","valor":"…"}],"relaciones":["…"]}],
- "ampliar":[{"nombre":"nombre exacto en el Codex","alias":["…"],"campos":[{"clave":"…","valor":"…"}],"datos":["…"],"relaciones":["…"]}]}
+{"nuevas":[{"tipo":"personaje","nombre":"…","alias":["…"],"descripcion":"…","campos":[{"clave":"…","valor":"…"}],"relaciones":[{"nombre":"…","vinculo":"…"}]}],
+ "ampliar":[{"nombre":"nombre exacto en el Codex","alias":["…"],"campos":[{"clave":"…","valor":"…"}],"datos":["…"],"relaciones":[{"nombre":"…","vinculo":"…"}]}]}
 Si no hay nada nuevo, devuelve {"nuevas":[],"ampliar":[]}.
 
 ${instruccionIdioma(n.meta.idioma)}`;
@@ -166,6 +170,12 @@ function extraerJson(t: string): unknown {
 }
 
 const lista = (x: unknown): string[] => (Array.isArray(x) ? x.map(String).map((s) => s.trim()).filter(Boolean) : []);
+const relaciones = (x: unknown): Relacion[] =>
+  Array.isArray(x)
+    ? x
+        .map((r) => (typeof r === "string" ? { nombre: r.trim(), vinculo: "" } : { nombre: String(r?.nombre ?? "").trim(), vinculo: String(r?.vinculo ?? "").trim() }))
+        .filter((r) => r.nombre)
+    : [];
 const campos = (x: unknown): Campo[] =>
   Array.isArray(x)
     ? x
@@ -192,11 +202,12 @@ function fusionar(n: Novela, r: Resultado, json: unknown): void {
       if (!k || desc.includes(k) || p.datos.some((x) => norm(x) === k) || descartado.has(claveDato(e.id, d))) continue;
       p.datos.push(d);
     }
-    const relYa = new Set([...e.relaciones.map((id) => norm(n.codex.get(id)?.nombre ?? "")), ...p.relaciones.map(norm)]);
-    for (const rel of lista(a.relaciones)) {
-      const destino = buscarEntrada(n, rel);
-      if (destino?.id === e.id || norm(rel) === norm(e.nombre)) continue;
-      if (!relYa.has(norm(destino?.nombre ?? rel)) && !descartado.has(claveRel(e.id, rel))) (p.relaciones.push(destino?.nombre ?? rel), relYa.add(norm(destino?.nombre ?? rel)));
+    const relYa = new Set([...e.relaciones.map((id) => norm(n.codex.get(id)?.nombre ?? "")), ...p.relaciones.map((r) => norm(r.nombre))]);
+    for (const rel of relaciones(a.relaciones)) {
+      const destino = buscarEntrada(n, rel.nombre);
+      if (destino?.id === e.id || norm(rel.nombre) === norm(e.nombre)) continue;
+      const nombre = destino?.nombre ?? rel.nombre;
+      if (!relYa.has(norm(nombre)) && !descartado.has(claveRel(e.id, nombre))) (p.relaciones.push({ nombre, vinculo: rel.vinculo }), relYa.add(norm(nombre)));
     }
     if (p.alias.length || p.campos.length || p.datos.length || p.relaciones.length) r.ampliar.set(e.id, p);
   };
@@ -217,7 +228,7 @@ function fusionar(n: Novela, r: Resultado, json: unknown): void {
       continue;
     }
     const tipo = (TIPOS_CODEX.some((t) => t.valor === a.tipo) ? a.tipo : "otro") as TipoCodex;
-    const nueva: PropuestaNueva = { tipo, nombre, alias: lista(a.alias), descripcion: String(a.descripcion ?? "").trim(), campos: campos(a.campos), relaciones: lista(a.relaciones) };
+    const nueva: PropuestaNueva = { tipo, nombre, alias: lista(a.alias), descripcion: String(a.descripcion ?? "").trim(), campos: campos(a.campos), relaciones: relaciones(a.relaciones) };
     if (descartado.has(claveNueva(nueva))) continue;
     // Repetida en otro lote de esta misma pasada: se juntan.
     const previa = r.nuevas.find((p) => [p.nombre, ...p.alias].some((y) => [nombre, ...nueva.alias].some((z) => norm(y) === norm(z))));
@@ -225,7 +236,7 @@ function fusionar(n: Novela, r: Resultado, json: unknown): void {
       for (const al of nueva.alias) if (![previa.nombre, ...previa.alias].some((y) => norm(y) === norm(al))) previa.alias.push(al);
       for (const c of nueva.campos) if (!previa.campos.some((y) => norm(y.clave) === norm(c.clave))) previa.campos.push(c);
       if (nueva.descripcion && !norm(previa.descripcion).includes(norm(nueva.descripcion))) previa.descripcion = `${previa.descripcion}\n\n${nueva.descripcion}`.trim();
-      for (const rel of nueva.relaciones) if (!previa.relaciones.some((y) => norm(y) === norm(rel))) previa.relaciones.push(rel);
+      for (const rel of nueva.relaciones) if (!previa.relaciones.some((y) => norm(y.nombre) === norm(rel.nombre))) previa.relaciones.push(rel);
       continue;
     }
     r.nuevas.push(nueva);
@@ -348,7 +359,13 @@ export function abrirAutoCodex(): void {
         e.alias = p.alias;
         e.descripcion = p.descripcion;
         e.campos = p.campos;
-        e.relaciones = p.relaciones.map((x) => ids.get(norm(x))).filter((x): x is string => !!x && x !== e.id);
+        e.relaciones = [];
+        for (const r of p.relaciones) {
+          const id = ids.get(norm(r.nombre));
+          if (!id || id === e.id || e.relaciones.includes(id)) continue;
+          e.relaciones.push(id);
+          if (r.vinculo) e.vinculos[id] = r.vinculo;
+        }
         guardarCodex(e, false);
         creadas.push(e);
       });
@@ -360,7 +377,7 @@ export function abrirAutoCodex(): void {
         h("label", { class: "ac-head" }, c, h("strong", null, p.nombre), p.alias.length ? h("span", { class: "muted" }, ` · ${p.alias.join(", ")}`) : null, h("span", { class: "grow" }), tipoSel),
         p.descripcion ? h("p", { class: "ac-desc" }, p.descripcion) : null,
         p.campos.length ? h("dl", { class: "ac-fields" }, ...p.campos.flatMap((x) => [h("dt", null, x.clave), h("dd", null, x.valor)])) : null,
-        p.relaciones.length ? h("p", { class: "muted ac-rel" }, icon("link"), ` ${p.relaciones.join(", ")}`) : null,
+        p.relaciones.length ? h("p", { class: "muted ac-rel" }, icon("link"), ` ${p.relaciones.map((r) => (r.vinculo ? `${r.vinculo} ${r.nombre}` : r.nombre)).join(" · ")}`) : null,
       );
     });
 
@@ -376,15 +393,16 @@ export function abrirAutoCodex(): void {
           h(
             "label",
             { class: "ac-row" },
-            casilla(claveRel(e.id, rel), (ids) => {
-              const id = ids.get(norm(rel));
+            casilla(claveRel(e.id, rel.nombre), (ids) => {
+              const id = ids.get(norm(rel.nombre));
               if (!id || id === e.id || e.relaciones.includes(id)) return;
               e.relaciones.push(id);
+              if (rel.vinculo) e.vinculos[id] = rel.vinculo;
               const otra = n.codex.get(id);
               if (otra && !otra.relaciones.includes(e.id)) (otra.relaciones.push(e.id), guardarCodex(otra, false));
             }),
             h("span", { class: "ac-kind" }, "Relación"),
-            h("span", null, rel),
+            h("span", null, rel.vinculo ? `${rel.vinculo} ${rel.nombre}` : rel.nombre),
           ),
         );
       return h("div", { class: "ac-card", attrs: { translate: "no" } }, h("div", { class: "ac-head" }, h("strong", null, e.nombre), h("span", { class: "muted" }, ` · ${TIPOS_CODEX.find((t) => t.valor === e.tipo)?.texto ?? e.tipo}`)), ...filas);

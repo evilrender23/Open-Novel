@@ -89,6 +89,8 @@ export interface EntradaCodex {
   detectar: boolean;
   campos: { clave: string; valor: string }[];
   relaciones: string[];
+  /** Cómo se relaciona con cada entrada relacionada (id → «hermana de», «vive en»…). */
+  vinculos: Record<string, string>;
   progresiones: { escena: string; texto: string }[];
   descripcion: string;
   creado: number;
@@ -244,6 +246,7 @@ export function entradaNueva(nombre: string, tipo: TipoCodex): EntradaCodex {
     detectar: true,
     campos: [],
     relaciones: [],
+    vinculos: {},
     progresiones: [],
     descripcion: "",
     creado: Date.now(),
@@ -281,6 +284,9 @@ function parsearCodex(id: string, texto: string): EntradaCodex {
     ? Object.entries(datos.campos as Record<string, unknown>).map(([clave, valor]) => ({ clave, valor: String(valor ?? "") }))
     : [];
   e.relaciones = Array.isArray(datos.relaciones) ? datos.relaciones.map(String) : [];
+  e.vinculos = {};
+  if (datos.vinculos && typeof datos.vinculos === "object")
+    for (const [k, v] of Object.entries(datos.vinculos as Record<string, unknown>)) if (String(v ?? "").trim()) e.vinculos[k] = String(v);
   e.progresiones = Array.isArray(datos.progresiones)
     ? datos.progresiones.map((p: any) => ({ escena: String(p?.escena ?? ""), texto: String(p?.texto ?? "") }))
     : [];
@@ -304,6 +310,10 @@ function serializarCodex(e: EntradaCodex): string {
       detectar: e.detectar,
       campos,
       relaciones: e.relaciones,
+      vinculos: (() => {
+        const v = Object.fromEntries(e.relaciones.filter((id) => e.vinculos?.[id]?.trim()).map((id) => [id, e.vinculos[id].trim()]));
+        return Object.keys(v).length ? v : undefined;
+      })(),
       progresiones: e.progresiones,
       creado: e.creado,
     },

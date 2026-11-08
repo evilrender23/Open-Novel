@@ -94,7 +94,14 @@ export function formatearEntrada(n: Novela, e: EntradaCodex, hastaEscena?: strin
       .sort((a, b) => (orden.get(a.escena) ?? 0) - (orden.get(b.escena) ?? 0));
     if (prog.length) lineas.push("Evolución hasta este punto:\n" + prog.map((p) => `- ${p.texto.trim()}`).join("\n"));
   }
-  const rel = e.relaciones.map((r) => n.codex.get(r)?.nombre).filter(Boolean);
+  const rel = e.relaciones
+    .map((r) => {
+      const x = n.codex.get(r);
+      if (!x) return "";
+      const v = e.vinculos?.[r]?.trim();
+      return v ? `${x.nombre} (${v})` : x.nombre;
+    })
+    .filter(Boolean);
   if (rel.length) lineas.push(`Relacionado con: ${rel.join(", ")}`);
   return lineas.join("\n");
 }
@@ -113,7 +120,8 @@ export function contextoDesarrollo(n: Novela, e: EntradaCodex, maxPalabras = 300
     .map((x) => {
       // Escenas que comparten con la entrada: la relación vista en el texto.
       const juntas = escenasConEntrada(n, x.id).filter((a) => escenasConEntrada(n, e.id).some((b) => b.escenaId === a.escenaId)).length;
-      return formatearEntrada(n, x) + (juntas ? `\nCoinciden en ${juntas} escena${juntas === 1 ? "" : "s"}.` : "");
+      const vinculo = [e.vinculos?.[x.id] ? `${e.nombre} es ${e.vinculos[x.id]} ${x.nombre}` : "", x.vinculos?.[e.id] ? `${x.nombre} es ${x.vinculos[e.id]} ${e.nombre}` : ""].filter(Boolean).join("; ");
+      return formatearEntrada(n, x) + (vinculo ? `\nVínculo: ${vinculo}.` : "") + (juntas ? `\nCoinciden en ${juntas} escena${juntas === 1 ? "" : "s"}.` : "");
     })
     .join("\n\n");
 

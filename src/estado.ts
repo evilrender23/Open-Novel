@@ -135,6 +135,7 @@ export async function borrarCodex(id: string): Promise<void> {
   for (const e of n.codex.values())
     if (e.relaciones.includes(id)) {
       e.relaciones = e.relaciones.filter((r) => r !== id);
+      delete e.vinculos?.[id];
       guardarCodex(e, false);
     }
   for (const u of n.meta.actos.flatMap((a) => a.capitulos.flatMap((c) => c.escenas))) if (u.pov === id) u.pov = "";
@@ -301,7 +302,7 @@ Puedes borrar la marca de la primera línea si quieres que la app no regenere es
 - \`codex/<id>.md\` — entradas del Codex con frontmatter YAML:
   \`nombre\`, \`tipo\` (personaje | lugar | objeto | lore | subtrama | otro), \`alias\` (lista), \`etiquetas\` (lista),
   \`incluir\` (siempre | menciones | nunca: cuándo entra en el contexto de la IA), \`detectar\` (bool),
-  \`campos\` (mapa clave → valor), \`relaciones\` (ids de otras entradas), \`progresiones\` (lista de \`{escena: <id>, texto}\`).
+  \`campos\` (mapa clave → valor), \`relaciones\` (ids de otras entradas; recíprocas: añádela también en la otra entrada), \`vinculos\` (mapa id → tipo de relación, p. ej. «hermana de», «vive en»), \`progresiones\` (lista de \`{escena: <id>, texto}\`).
   El cuerpo, después del frontmatter, es la descripción.
 - \`notas/<id>.md\` — notas libres (frontmatter: \`titulo\`, \`fijada\`).
 - \`prompts/<id>.md\` — prompts personalizados (frontmatter: \`nombre\`, \`accion\`, \`descripcion\`, \`sistema\`; cuerpo = plantilla con \`{{variables}}\`).

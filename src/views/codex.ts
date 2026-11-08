@@ -10,7 +10,7 @@ import { buscarEscena, entradaNueva, TIPOS_CODEX, todasLasEscenas, type EntradaC
 import { Propuesta } from "../propuesta";
 import { iconoTipo, type ResultadoVista } from "../shell";
 import { ACENTOS } from "../ajustes";
-import { btn, confirmar, h, icon, menu, num, select, vacio } from "../ui";
+import { btn, confirmar, h, icon, menu, num, pedirTexto, select, vacio } from "../ui";
 import { abrirEscena } from "./escribir";
 
 let filtro = "";
@@ -211,48 +211,151 @@ function editorEntrada(e: EntradaCodex, seleccionar: (id: string) => void): HTML
   };
   pintarCampos();
 
-  // Relaciones
-  const relaciones = h("div", { class: "rel" });
+  // Entradas relacionadas
+  const relaciones = h("div", { class: "rel-list" });
+  const contadorRel = h("span", { class: "muted" });
+  const relacionar = (x: EntradaCodex, vinculo = "") => {
+    if (x.id === e.id) return;
+    if (!e.relaciones.includes(x.id)) e.relaciones.push(x.id);
+    if (vinculo) e.vinculos[x.id] = vinculo;
+    // Recíproca (sin etiqueta: «hermana de» no siempre es simétrica).
+    if (!x.relaciones.includes(e.id)) {
+      x.relaciones.push(e.id);
+      guardarCodex(x, false);
+    }
+    avisar();
+    pintarRel();
+  };
+  const desrelacionar = (x: EntradaCodex) => {
+    e.relaciones = e.relaciones.filter((id) => id !== x.id);
+    delete e.vinculos[x.id];
+    x.relaciones = x.relaciones.filter((id) => id !== e.id);
+    delete x.vinculos?.[e.id];
+    guardarCodex(x, false);
+    avisar();
+    pintarRel();
+  };
+  const escenasDe = (id: string) => new Set(escenasConEntrada(n, id).map((a) => a.escenaId));
+  const propias = escenasDe(e.id);
+  const compartidas = (id: string) => [...escenasDe(id)].filter((x) => propias.has(x)).length;
+  const sugerenciasVinculo = (x: EntradaCodex): string[] => {
+    const base: Record<string, string[]> = {
+      personaje: ["amigo de", "enemigo de", "aliado de", "rival de", "pareja de", "padre de", "madre de", "hijo de", "hija de", "hermano de", "hermana de", "mentor de", "trabaja para", "le debe", "ama a", "teme a"],
+      lugar: ["vive en", "nació en", "trabaja en", "gobierna", "frecuenta", "huyó de", "está en"],
+      objeto: ["posee", "busca", "fabricó", "perdió", "robó", "protege", "es de"],
+      lore: ["pertenece a", "cree en", "conoce", "custodia", "afecta a", "forma parte de"],
+      subtrama: ["protagoniza", "participa en", "provoca", "resuelve", "ocurre en"],
+      otro: ["relacionado con", "forma parte de"],
+    };
+    return base[x.tipo] ?? base.otro;
+  };
   const pintarRel = () => {
-    relaciones.replaceChildren(
-      ...e.relaciones
-        .map((id) => n.codex.get(id))
-        .filter((x): x is EntradaCodex => !!x)
-        .map((r) =>
+    const filas = e.relaciones
+      .map((id) => n.codex.get(id))
+      .filter((x): x is EntradaCodex => !!x)
+      .map((r) => {
+        const vinculo = h("input", { class: "rel-label", value: e.vinculos[r.id] ?? "", placeholder: "tipo de relación…", attrs: { list: `vinc-${r.id}` } });
+        vinculo.addEventListener("input", () => {
+          const v = vinculo.value.trim();
+          if (v) e.vinculos[r.id] = v;
+          else delete e.vinculos[r.id];
+          guardar();
+        });
+        vinculo.addEventListener("change", avisar);
+        const inverso = r.vinculos?.[e.id];
+        const juntas = compartidas(r.id);
+        return h(
+          "div",
+          { class: "rel-card" },
+          h("button", { type: "button", class: "rel-who", onclick: () => seleccionar(r.id), attrs: { "data-tip": "Abrir entrada" } }, avatar(r, "avatar-sm")),
           h(
-            "span",
-            { class: "rel-chip" },
-            h("button", { type: "button", class: "rel-open", onclick: () => seleccionar(r.id) }, avatar(r, "avatar-xs"), r.nombre),
-            h("button", { type: "button", class: "chip-x", attrs: { "aria-label": `Quitar ${r.nombre}` }, onclick: () => {
-              e.relaciones = e.relaciones.filter((x) => x !== r.id);
-              avisar();
-              pintarRel();
-            } }, icon("x")),
+            "div",
+            { class: "rel-body" },
+            h(
+              "div",
+              { class: "rel-line", attrs: { translate: "no" } },
+              h("span", { class: "rel-me" }, e.nombre),
+              vinculo,
+              h("datalist", { id: `vinc-${r.id}` }, ...sugerenciasVinculo(r).map((x) => h("option", { value: x }))),
+              h("button", { type: "button", class: "rel-name", onclick: () => seleccionar(r.id) }, r.nombre),
+            ),
+            h(
+              "div",
+              { class: "rel-meta" },
+              h("span", null, TIPOS_CODEX.find((t) => t.valor === r.tipo)?.texto ?? r.tipo),
+              inverso ? h("span", { attrs: { translate: "no" } }, `· ${r.nombre} ${inverso} ${e.nombre}`) : null,
+              h("span", null, juntas ? `· coinciden en ${num(juntas)} escena${juntas === 1 ? "" : "s"}` : "· no coinciden en ninguna escena"),
+            ),
+            r.descripcion ? h("p", { class: "rel-desc", attrs: { translate: "no" } }, r.descripcion.slice(0, 140) + (r.descripcion.length > 140 ? "…" : "")) : null,
           ),
+          btn(null, { icon: "x", variant: "ghost", size: "icon-xs", title: "Quitar relación", onclick: () => desrelacionar(r) }),
+        );
+      });
+
+    // Sugeridas: entradas que aparecen en las mismas escenas y aún no están relacionadas.
+    const sugeridas = [...n.codex.values()]
+      .filter((x) => x.id !== e.id && !e.relaciones.includes(x.id))
+      .map((x) => ({ x, juntas: compartidas(x.id), mencionada: [x.nombre, ...x.alias].some((t) => t.trim().length > 2 && e.descripcion.toLocaleLowerCase().includes(t.toLocaleLowerCase())) }))
+      .filter((s) => s.juntas > 0 || s.mencionada)
+      .sort((a, b) => Number(b.mencionada) - Number(a.mencionada) || b.juntas - a.juntas)
+      .slice(0, 6);
+
+    const anadir = btn("Relacionar con…", {
+      icon: "link",
+      variant: "ghost",
+      size: "xs",
+      onclick: (ev) => {
+        const candidatos = [...n.codex.values()].filter((x) => x.id !== e.id && !e.relaciones.includes(x.id)).sort((a, b) => a.nombre.localeCompare(b.nombre));
+        menu(
+          candidatos.length ? candidatos.map((x) => ({ texto: x.nombre, icono: iconoTipo(x.tipo), accion: () => relacionar(x) })) : [{ titulo: "No hay más entradas" }],
+          ev.currentTarget as HTMLElement,
+        );
+      },
+    });
+    const crear = btn("Nueva entrada relacionada", {
+      icon: "plus",
+      variant: "ghost",
+      size: "xs",
+      onclick: (ev) =>
+        menu(
+          TIPOS_CODEX.map((t) => ({
+            texto: t.texto,
+            icono: t.icono,
+            accion: async () => {
+              const nombre = await pedirTexto(`Nuevo ${t.texto.toLocaleLowerCase()} relacionado con «${e.nombre}»`, "Nombre");
+              if (!nombre?.trim()) return;
+              const x = entradaNueva(nombre.trim(), t.valor);
+              x.relaciones = [e.id];
+              guardarCodex(x, false);
+              relacionar(x);
+              seleccionar(x.id);
+            },
+          })),
+          ev.currentTarget as HTMLElement,
         ),
-      btn("Relacionar", {
-        icon: "link",
-        variant: "ghost",
-        size: "xs",
-        onclick: (ev) => {
-          const candidatos = [...n.codex.values()].filter((x) => x.id !== e.id && !e.relaciones.includes(x.id)).sort((a, b) => a.nombre.localeCompare(b.nombre));
-          menu(
-            candidatos.length
-              ? candidatos.map((x) => ({ texto: x.nombre, icono: iconoTipo(x.tipo), accion: () => {
-                  e.relaciones.push(x.id);
-                  // Relación recíproca.
-                  if (!x.relaciones.includes(e.id)) {
-                    x.relaciones.push(e.id);
-                    guardarCodex(x, false);
-                  }
-                  avisar();
-                  pintarRel();
-                } }))
-              : [{ titulo: "No hay más entradas" }],
-            ev.currentTarget as HTMLElement,
-          );
-        },
-      }),
+    });
+    const bloqueSugeridas = sugeridas.length
+        ? h(
+            "div",
+            { class: "rel-suggest" },
+            h("span", { class: "rel-suggest-title" }, "Sugeridas"),
+            ...sugeridas.map((s) =>
+              h(
+                "button",
+                { type: "button", class: "rel-sug", onclick: () => relacionar(s.x), attrs: { "data-tip": s.mencionada ? "Aparece en la descripción" : `Coinciden en ${s.juntas} escena${s.juntas === 1 ? "" : "s"}` } },
+                icon("plus"),
+                avatar(s.x, "avatar-xs"),
+                h("span", { attrs: { translate: "no" } }, s.x.nombre),
+                h("span", { class: "muted" }, s.mencionada ? "descr." : `×${s.juntas}`),
+              ),
+            ),
+          )
+        : null;
+    contadorRel.textContent = filas.length ? String(filas.length) : "";
+    relaciones.replaceChildren(
+      ...(filas.length ? filas : [h("p", { class: "panel-empty" }, "Sin entradas relacionadas. La IA las tiene en cuenta al escribir y al desarrollar esta entrada.")]),
+      ...(bloqueSugeridas ? [bloqueSugeridas] : []),
+      h("div", { class: "row-gap rel-actions" }, anadir, crear),
     );
   };
   pintarRel();
@@ -373,6 +476,7 @@ function editorEntrada(e: EntradaCodex, seleccionar: (id: string) => void): HTML
           zonaIA,
         ),
         h("div", { class: "field-block" }, h("div", { class: "panel-head" }, h("span", null, "Detalles")), campos),
+        h("div", { class: "field-block" }, h("div", { class: "panel-head" }, h("span", null, "Entradas relacionadas"), contadorRel), relaciones),
         h("div", { class: "field-block" }, h("div", { class: "panel-head" }, h("span", null, "Progresiones"), h("span", { class: "muted" }, "cambios a lo largo de la historia")), progresiones),
       ),
       h(
@@ -399,7 +503,6 @@ function editorEntrada(e: EntradaCodex, seleccionar: (id: string) => void): HTML
         ),
         h("section", { class: "panel-sec" }, h("div", { class: "panel-head" }, h("span", null, "Color")), colores),
         h("section", { class: "panel-sec" }, h("div", { class: "panel-head" }, h("span", null, "Etiquetas")), chips(e.etiquetas, (v) => ((e.etiquetas = v), avisar()), "Añadir etiqueta…")),
-        h("section", { class: "panel-sec" }, h("div", { class: "panel-head" }, h("span", null, "Relaciones")), relaciones),
         h("section", { class: "panel-sec" }, h("div", { class: "panel-head" }, h("span", null, "Apariciones"), h("span", { class: "muted" }, String(apariciones.length))), listaMenciones),
       ),
     ),
