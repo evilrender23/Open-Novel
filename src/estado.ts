@@ -1,7 +1,7 @@
 // Estado global de la novela abierta, guardado diferido y aviso de cambios.
 
 import { api } from "./api";
-import { idiomaEscritura } from "./ajustes";
+import { ajustes, idiomaEscritura } from "./ajustes";
 import {
   cargarNovela,
   contarPalabras,
@@ -319,7 +319,7 @@ ${n.meta.sinopsis ? `\n### Sinopsis\n\n${n.meta.sinopsis}\n` : ""}${n.meta.narra
 
 1. Escribe la prosa en el idioma de la novela y respeta la guía de estilo.
 2. Antes de reescribir una escena existente, léela entera. No borres texto del autor salvo que se te pida.
-3. Mantén coherencia con el Codex: consulta \`codex/\` antes de inventar datos de personajes o lugares. Si las fuentes se contradicen manda este orden: Codex, esquema y resúmenes, texto de la escena, petición del usuario. Señala las contradicciones en vez de corregirlas en silencio.
+3. Mantén coherencia con el Codex: consulta \`codex/\` antes de inventar datos de personajes o lugares. Si las fuentes se contradicen manda este orden: Codex, esquema y resúmenes, texto de la escena, petición del usuario. Señala las contradicciones en vez de corregirlas en silencio.${ajustes.soloPersonajesCodex ? " No inventes personajes con nombre que no estén en `codex/` ni en el texto: los figurantes van sin nombre; si hace falta un personaje nuevo, pregunta al autor o crea antes su ficha en `codex/`." : ""}
 4. Cuando crees personajes, lugares u objetos nuevos importantes, añade su entrada en \`codex/\`.
 5. Actualiza el \`resumen\` de una escena en \`novela.json\` cuando cambies su contenido de forma sustancial.
 `;

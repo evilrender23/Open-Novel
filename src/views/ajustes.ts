@@ -213,6 +213,15 @@ function ia(): HTMLElement {
         })(),
       ),
       seccion(
+        "Personajes",
+        (() => {
+          const c = h("input", { type: "checkbox", checked: ajustes.soloPersonajesCodex });
+          c.addEventListener("change", () => ((ajustes.soloPersonajesCodex = c.checked), guardarAjustes()));
+          return h("label", { class: "check" }, c, h("span", null, "Solo personajes del Codex: la IA no inventa personajes con nombre. Los figurantes van sin nombre y, si hace falta alguien nuevo, te avisa para que lo crees antes en el Codex."));
+        })(),
+        h("p", { class: "muted" }, "Se aplica a la prosa, al chat (en Ideación puede proponerlos marcándolos como nuevos), a «Desarrollar con IA» y al agente."),
+      ),
+      seccion(
         "Palabras y clichés prohibidos",
         h("p", { class: "muted" }, "Se añaden al prompt de sistema de todo lo que genera la IA: beats, reescrituras, Codex, chat, resúmenes, tus prompts personalizados y el agente. Una entrada por línea o separadas por comas; las líneas con # son comentarios."),
         (() => {

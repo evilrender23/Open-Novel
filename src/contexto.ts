@@ -315,6 +315,29 @@ export const MODOS_CHAT: { valor: ModoChat; texto: string; desc: string }[] = [
   { valor: "consulta", texto: "Consulta", desc: "Respuestas sobre la novela o el oficio" },
 ];
 
+/** Regla de personajes: solo los del Codex (con la lista completa de nombres y alias). */
+export function reglaPersonajes(n: Novela, tarea: TipoTarea | "agente"): string {
+  if (!ajustes.soloPersonajesCodex) return "";
+  const personajes = [...n.codex.values()]
+    .filter((e) => e.tipo === "personaje")
+    .map((e) => (e.alias.length ? `${e.nombre} (${e.alias.join(", ")})` : e.nombre));
+  const lista = personajes.length ? personajes.map((p) => `- ${p}`).join("\n") : "(el Codex aún no tiene personajes)";
+  const excepcion =
+    tarea === "chat"
+      ? "\nExcepción: en IDEACIÓN puedes proponer personajes nuevos si te lo piden, marcándolos claramente como propuesta («personaje nuevo, no está en el Codex»)."
+      : tarea === "codex"
+        ? "\nAl desarrollar una entrada, no le añadas familiares, amigos ni enemigos con nombre que no estén en el Codex ni en el texto."
+        : tarea === "agente"
+          ? "\nSi una tarea necesita un personaje nuevo, pregunta antes al autor o, si lo pide expresamente, créale primero su ficha en codex/."
+          : "";
+  return `<personajes>
+Solo pueden aparecer con nombre propio los personajes del Codex y los que ya salen en el texto de la novela. NO inventes personajes nuevos con nombre, ni les des nombre a figurantes.
+Personajes del Codex:
+${lista}
+Si la escena necesita a alguien más, que sea un figurante sin nombre y sin peso («el tabernero», «una mujer del puerto»). Si la petición exige un personaje nuevo e importante, no lo inventes: escribe sin él y avisa al final, en una línea aparte que empiece por «AVISO: », de que habría que crearlo antes en el Codex.${excepcion}
+</personajes>`;
+}
+
 export function bloqueMaestro(n: Novela, tarea: TipoTarea, plantillaSistema = ""): string {
   const m = n.meta;
   const partes: string[] = [];
@@ -330,6 +353,10 @@ Si el Codex, el esquema o la escena vienen vacíos o no están en el contexto, n
   if (m.estilo?.trim() && !plantillaSistema.includes("novela.estilo")) voz.push(m.estilo.trim());
   if (m.muestraVoz?.trim()) voz.push(`Muestra de la voz de la novela (imita su ritmo, registro y tipo de imágenes; no copies sus frases ni su contenido):\n«${m.muestraVoz.trim()}»`);
   if (voz.length && tarea !== "resumen") partes.push(`<voz>\n${voz.join("\n")}\n</voz>`);
+  if (tarea !== "resumen") {
+    const regla = reglaPersonajes(n, tarea);
+    if (regla) partes.push(regla);
+  }
   if (m.decisiones?.trim()) partes.push(`<estado_de_la_novela>\nDecisiones tomadas y hechos fijados por el autor (respétalos):\n${m.decisiones.trim()}\n</estado_de_la_novela>`);
 
   if (tarea === "prosa")

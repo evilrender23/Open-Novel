@@ -5,6 +5,7 @@
 
 import { api, iniciarEventos, nuevoId, suscribir, type FinClaude } from "../api";
 import { ajustes, guardarAjustes, idiomaEscritura, instruccionEvitar } from "../ajustes";
+import { reglaPersonajes } from "../contexto";
 import { borrarSesionAgente, estado, guardarSesionAgente, novela, recargarDesdeDisco, vaciarGuardado } from "../estado";
 import { markdown } from "../markdown";
 import { buscarEscena, todasLasEscenas, type ElementoAgente, type SesionAgente } from "../modelo";
@@ -379,6 +380,7 @@ async function lanzar(s: SesionAgente, texto: string, repintar: () => void, alCa
     u ? `El autor tiene abierta la escena «${u.escena.titulo}» (archivo escenas/${u.escena.id}.md), capítulo ${u.numCapitulo} «${u.capitulo.titulo}».` : "",
     `La novela tiene ${todasLasEscenas(n.meta).length} escenas y ${n.codex.size} entradas en el Codex.`,
     ajustes.forzarIdioma ? `IDIOMA OBLIGATORIO: toda la prosa, los resúmenes y las entradas del Codex que escribas en los archivos van en ${idiomaEscritura(n.meta.idioma)}, aunque el resto esté en otro idioma.` : "",
+    reglaPersonajes(n, "agente"),
     instruccionEvitar() ? `Al escribir prosa, nombres o entradas del Codex:\n${instruccionEvitar()}` : "",
   ]
     .filter(Boolean)

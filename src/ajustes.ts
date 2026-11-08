@@ -41,6 +41,8 @@ export interface Ajustes {
   idiomaIA: string;
   /** Añadir a todo prompt la orden de escribir solo en ese idioma. */
   forzarIdioma: boolean;
+  /** La IA no puede introducir personajes con nombre que no estén en el Codex. */
+  soloPersonajesCodex: boolean;
 }
 
 export const PROVEEDORES_BASE: Record<TipoProveedor, { nombre: string; url: string; modelos: string[]; necesitaClave: boolean }> = {
@@ -63,7 +65,7 @@ export function instruccionEvitar(): string {
 PROHIBIDO usar estas palabras, nombres y frases (ni variantes, ni plurales, ni traducciones). Son muletillas que delatan texto escrito por una IA:
 ${lineas.map((l) => `- ${l}`).join("\n")}
 Qué hacer en su lugar (no sustituyas una muletilla por un sinónimo):
-- Nombre propio nuevo: sobrio y coherente con el mundo, la época y la lengua de la novela; mira cómo se llaman los del Codex.
+${ajustes.soloPersonajesCodex ? "- Personajes: solo los del Codex (ver la regla de personajes); para lugares u objetos nuevos, nombres sobrios y coherentes con el mundo." : "- Nombre propio nuevo: sobrio y coherente con el mundo, la época y la lengua de la novela; mira cómo se llaman los del Codex."}
 - Imagen o comparación: un objeto, sonido o gesto concreto que ya esté en la escena, no una abstracción.
 - Emoción: lo que el personaje hace, dice o toca; no la nombres ni la expliques después.
 - Evita la estructura «no era X, era Y», los tríos de adjetivos y los cierres de párrafo que resumen lo que se acaba de mostrar.
@@ -140,6 +142,7 @@ function predeterminados(): Ajustes {
     idioma: "",
     idiomaIA: "novela",
     forzarIdioma: true,
+    soloPersonajesCodex: true,
   };
 }
 
