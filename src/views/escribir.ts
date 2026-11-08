@@ -37,6 +37,13 @@ import { btn, confirmar, errMsg, fechaCorta, h, icon, menu, modal, num, select, 
 
 let editorActivo: EditorEscena | null = null;
 
+/** Activa o desactiva el modo lectura (menú Visualización). */
+export function alternarLectura(): void {
+  const b = document.querySelector<HTMLButtonElement>(".btn-lectura");
+  if (b) b.click();
+  else lectura = !lectura;
+}
+
 /** ⌘F / ⌘⌥F / ⌘G desde los atajos globales. Devuelve false si no hay editor. */
 export function atajoBuscar(accion: "buscar" | "reemplazar" | "siguiente" | "anterior"): boolean {
   const ed = editorActivo;
@@ -246,7 +253,7 @@ export function vistaEscribir(): ResultadoVista {
       variant: "ghost",
       size: "icon-sm",
       title: "Modo lectura",
-      class: lectura ? "is-on" : "",
+      class: `btn-lectura${lectura ? " is-on" : ""}`,
       onclick: (e) => {
         lectura = !lectura;
         (e.currentTarget as HTMLElement).classList.toggle("is-on", lectura);

@@ -52,7 +52,7 @@ function recorrerTs(archivo) {
     const llamada = n.parent && ts.isCallExpression(n.parent) ? n.parent.expression.getText() : "";
     const pos = llamada ? n.parent.arguments.indexOf(n) : -1;
     // t("…"), hijos de h(tag, props, …) y la etiqueta de btn("…"): siempre son texto visible.
-    const enT = llamada === "t" || (llamada === "h" && pos >= 2) || (llamada === "btn" && pos === 0);
+    const enT = llamada === "t" || (llamada === "h" && pos >= 2) || (llamada === "btn" && pos === 0) || (llamada === "item" && pos === 0);
     if (enT && (ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n))) {
       const s = n.text.replace(/\s+/g, " ").trim();
       if (s) textos.add(s);

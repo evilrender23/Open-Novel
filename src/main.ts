@@ -4,7 +4,7 @@
 import "./styles.css";
 
 import { iniciarEventos } from "./api";
-import { ajustes, cargarAjustes } from "./ajustes";
+import { ajustes, cargarAjustes, esOscuro, guardarAjustes } from "./ajustes";
 import { cargarIdioma, idiomaSistema, observar } from "./i18n";
 import { abrirNovela, cerrarNovela, estado, novela, vaciarGuardado, type Vista } from "./estado";
 import { todasLasEscenas, TIPOS_CODEX } from "./modelo";
@@ -20,7 +20,10 @@ import { vistaExportar } from "./views/exportar";
 import { vistaNotas } from "./views/notas";
 import { abrirMetadatos, vistaPlanificar } from "./views/planificar";
 import { vistaPrompts } from "./views/prompts";
-import { iniciarActualizador } from "./updater";
+import { buscarActualizaciones, iniciarActualizador } from "./updater";
+import { actualizarMenu, montarMenu } from "./menu";
+import { accionesBiblioteca } from "./views/biblioteca";
+import { alternarLectura } from "./views/escribir";
 
 const app = document.getElementById("app")!;
 
@@ -47,12 +50,14 @@ async function irBiblioteca(): Promise<void> {
   await vaciarGuardado();
   cerrarNovela();
   pantallaBiblioteca(app, (c) => void abrir(c), () => abrirAjustes());
+  void actualizarMenu(false);
 }
 
 async function abrir(carpeta: string): Promise<void> {
   try {
     await abrirNovela(carpeta);
     montarShell(app);
+    void actualizarMenu(true);
   } catch (e) {
     toast(`No se pudo abrir la novela: ${errMsg(e)}`, "error");
     await irBiblioteca();
@@ -215,6 +220,39 @@ async function iniciar(): Promise<void> {
   observar();
   await iniciarEventos();
   iniciarActualizador();
+  void montarMenu(
+    {
+      hayNovela: () => !!estado.novela,
+      ajustes: () => abrirAjustes(),
+      actualizaciones: () => {
+        abrirAjustes("actualizaciones");
+        void buscarActualizaciones(true).catch(() => undefined);
+      },
+      acercaDe: () => abrirAjustes("actualizaciones"),
+      nuevaNovela: () => void (estado.novela ? irBiblioteca() : Promise.resolve()).then(() => accionesBiblioteca.nueva?.()),
+      importar: () => void (estado.novela ? irBiblioteca() : Promise.resolve()).then(() => accionesBiblioteca.importar?.()),
+      biblioteca: () => void irBiblioteca(),
+      datosNovela: () => abrirMetadatos(),
+      guardar: () => void vaciarGuardado().then(() => toast("Guardado", "ok")),
+      exportar: () => irA("exportar"),
+      buscar: (accion) => {
+        if (estado.vista !== "escribir") irA("escribir");
+        window.setTimeout(() => atajoBuscar(accion), 30);
+      },
+      paleta: () => abrirPaleta(),
+      ir: (v) => irA(v as Vista),
+      modoFoco: () => modoFoco(),
+      modoLectura: () => {
+        if (estado.vista !== "escribir") irA("escribir");
+        window.setTimeout(alternarLectura, 30);
+      },
+      tema: () => {
+        ajustes.tema = esOscuro() ? "claro" : "oscuro";
+        guardarAjustes();
+      },
+    },
+    NAV,
+  ).catch((e) => console.warn("Menú nativo:", e));
   const ultima = localStorage.getItem("ultima-novela");
   if (ultima) await abrir(ultima);
   else await irBiblioteca();

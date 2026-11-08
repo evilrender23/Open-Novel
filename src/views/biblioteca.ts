@@ -11,6 +11,9 @@ import { btn, campo, confirmar, errMsg, fechaCorta, h, icon, menu, modal, num, s
 
 type Plantilla = "vacia" | "tres-actos" | "ejemplo";
 
+/** Acciones de la biblioteca montada (para la barra de menús). */
+export const accionesBiblioteca: { nueva: (() => void) | null; importar: (() => void) | null } = { nueva: null, importar: null };
+
 export function pantallaBiblioteca(contenedor: HTMLElement, alAbrir: (carpeta: string) => void, alAjustes: () => void): void {
   const lista = h("div", { class: "lib-list" });
   const rutaEl = h("span", { class: "lib-path" });
@@ -173,6 +176,8 @@ export function pantallaBiblioteca(contenedor: HTMLElement, alAbrir: (carpeta: s
     await cargar();
   };
 
+  accionesBiblioteca.nueva = dialogoNueva;
+  accionesBiblioteca.importar = () => void importar();
   contenedor.replaceChildren(
     h(
       "div",
