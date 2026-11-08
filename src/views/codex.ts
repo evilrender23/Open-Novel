@@ -4,6 +4,7 @@
 
 import { avatar, chips, segmentado } from "../componentes";
 import { contextoDesarrollo, escenasConEntrada } from "../contexto";
+import { abrirAutoCodex } from "../autocodex";
 import { borrarCodex, estado, guardarCodex, novela } from "../estado";
 import { buscarEscena, entradaNueva, TIPOS_CODEX, todasLasEscenas, type EntradaCodex, type TipoCodex } from "../modelo";
 import { Propuesta } from "../propuesta";
@@ -106,6 +107,7 @@ export function vistaCodex(): ResultadoVista {
         },
         "select select-ghost",
       ),
+      btn("Rellenar desde la novela", { icon: "sparkle", variant: "ghost", size: "sm", onclick: () => abrirAutoCodex() }),
       btn("Nueva entrada", { icon: "plus", variant: "secondary", size: "sm", onclick: (ev) => menuNueva(ev.currentTarget as HTMLElement) }),
     ],
     alCambiar: (c, id) => {

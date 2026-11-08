@@ -20,6 +20,7 @@ import { vistaExportar } from "./views/exportar";
 import { vistaNotas } from "./views/notas";
 import { abrirMetadatos, vistaPlanificar } from "./views/planificar";
 import { vistaPrompts } from "./views/prompts";
+import { abrirAutoCodex } from "./autocodex";
 import { buscarActualizaciones, iniciarActualizador } from "./updater";
 import { actualizarMenu, montarMenu } from "./menu";
 import { accionesBiblioteca } from "./views/biblioteca";
@@ -84,6 +85,7 @@ function comandos(): Comando[] {
     { texto: "Buscar en el escrito", grupo: "Acciones", icono: "search", accion: () => (irA("escribir"), window.setTimeout(() => atajoBuscar("buscar"), 30)), extra: "⌘F" },
     { texto: "Buscar y reemplazar", grupo: "Acciones", icono: "search", accion: () => (irA("escribir"), window.setTimeout(() => atajoBuscar("reemplazar"), 30)), extra: "⌘⌥F" },
     { texto: "Volver a la biblioteca", grupo: "Acciones", icono: "library", accion: () => void irBiblioteca() },
+    { texto: "Rellenar el Codex desde la novela", grupo: "Acciones", icono: "sparkle", accion: () => (irA("codex"), abrirAutoCodex()) },
   );
   const n = novela();
   for (const u of todasLasEscenas(n.meta))

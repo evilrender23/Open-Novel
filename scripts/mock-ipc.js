@@ -93,7 +93,7 @@
         linea({ type: "assistant", message: { content: [{ type: "text", text: texto }] } });
         linea({ type: "result", subtype: "success", is_error: false, result: texto, session_id: "mock-sesion-1", total_cost_usd: 0.0421, duration_ms: 8400, num_turns: 4 });
       } else {
-        const texto = respuestaFalsa(entrada);
+        const texto = window.__respuestas?.length ? window.__respuestas.shift() : respuestaFalsa(entrada);
         for (const trozo of texto.match(/.{1,8}/gs)) {
           linea({ type: "stream_event", event: { type: "content_block_delta", delta: { type: "text_delta", text: trozo } } });
           await null;

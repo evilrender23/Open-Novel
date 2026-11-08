@@ -3844,3 +3844,84 @@ body,
 .ed-area {
   overflow: hidden;
 }
+
+/* Rellenar el Codex desde la novela */
+.autocodex .modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  max-height: min(70vh, 44rem);
+  overflow-y: auto;
+}
+.ac-start p {
+  margin: 0 0 0.625rem;
+}
+.ac-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.ac-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--r-lg);
+  background: var(--ui-bg-elevated);
+  box-shadow: 0 0 0 1px var(--ui-stroke-tertiary);
+}
+.ac-head {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+.ac-head .select {
+  width: auto;
+}
+.ac-desc {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ui-text-secondary);
+}
+.ac-fields {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.125rem 0.75rem;
+  margin: 0;
+  font-size: 12.5px;
+}
+.ac-fields dt {
+  color: var(--ui-text-tertiary);
+}
+.ac-fields dd {
+  margin: 0;
+}
+.ac-rel {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0;
+  font-size: 12px;
+}
+.ac-rel .icon {
+  width: 12px;
+  height: 12px;
+}
+.ac-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 13px;
+}
+.ac-kind {
+  flex: none;
+  min-width: 5.5rem;
+  font-size: 11.5px;
+  color: var(--ui-text-tertiary);
+}
+.ac-empty {
+  padding: 1.5rem 0;
+  text-align: center;
+  color: var(--ui-text-tertiary);
+}
