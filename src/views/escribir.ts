@@ -617,7 +617,8 @@ class EditorEscena {
       { texto: "Guardar instantánea", icono: "history", accion: () => void instantanea(this.id).then(() => toast("Instantánea guardada", "ok")) },
     );
     e.preventDefault();
-    menu(items, { x: e.clientX, y: e.clientY });
+    this.ta.focus();
+    menu(items, { x: e.clientX, y: e.clientY }, { mantenerFoco: true });
   }
 
   private atajos(e: KeyboardEvent): void {

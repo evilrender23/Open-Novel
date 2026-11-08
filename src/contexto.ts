@@ -225,6 +225,9 @@ export const VARIABLES_DOC: { nombre: string; desc: string }[] = [
   { nombre: "novela.sinopsis", desc: "Sinopsis" },
   { nombre: "novela.estilo", desc: "Guía de estilo de la novela" },
   { nombre: "idioma", desc: "Idioma de la prosa" },
+  { nombre: "novela.narrador", desc: "Persona y tiempo del narrador" },
+  { nombre: "novela.muestra_voz", desc: "Muestra de la voz de la novela" },
+  { nombre: "novela.decisiones", desc: "Estado de la novela y decisiones tomadas" },
   { nombre: "entrada.relacionadas", desc: "Codex: fichas de las entradas relacionadas" },
   { nombre: "entrada.apariciones", desc: "Codex: escenas y párrafos donde aparece la entrada" },
   { nombre: "codex", desc: "Entradas del Codex relevantes (siempre + mencionadas)" },
@@ -265,6 +268,9 @@ export function variablesBase(n: Novela, escenaId?: string): Variables {
     "novela.sinopsis": n.meta.sinopsis,
     "novela.estilo": n.meta.estilo,
     idioma: idiomaEscritura(n.meta.idioma),
+    "novela.narrador": n.meta.narrador ?? "",
+    "novela.muestra_voz": n.meta.muestraVoz ?? "",
+    "novela.decisiones": n.meta.decisiones ?? "",
   };
   const u = escenaId ? buscarEscena(n.meta, escenaId) : undefined;
   if (u) {
@@ -285,11 +291,94 @@ export function conCodex(n: Novela, v: Variables, escenaId?: string): Variables 
   return { ...v, codex: contextoCodex(n, relevantes, "auto", escenaId) };
 }
 
+// ── Bloque maestro ───────────────────────────────────────────────────────
+// Se añade al prompt de sistema de TODO lo que genera la IA (también a los
+// prompts personalizados): jerarquía de fuentes, voz de la novela, estado y un
+// protocolo según el tipo de tarea.
+
+export type TipoTarea = "prosa" | "chat" | "codex" | "resumen";
+
+export type ModoChat = "auto" | "critica" | "redaccion" | "ideacion" | "consulta";
+export const MODOS_CHAT: { valor: ModoChat; texto: string; desc: string }[] = [
+  { valor: "auto", texto: "Auto", desc: "La IA elige el modo según tu mensaje" },
+  { valor: "critica", texto: "Crítica", desc: "Diagnóstico editorial, sin reescribir" },
+  { valor: "redaccion", texto: "Redacción", desc: "Texto narrativo listo para la novela" },
+  { valor: "ideacion", texto: "Ideación", desc: "Opciones breves y numeradas" },
+  { valor: "consulta", texto: "Consulta", desc: "Respuestas sobre la novela o el oficio" },
+];
+
+export function bloqueMaestro(n: Novela, tarea: TipoTarea, plantillaSistema = ""): string {
+  const m = n.meta;
+  const partes: string[] = [];
+  partes.push(`<fuentes_y_prioridad>
+Si las fuentes se contradicen, manda este orden: 1) el Codex, 2) el esquema y los resúmenes de escena, 3) el texto de la escena actual, 4) lo que se pida en el mensaje.
+Antes de escribir u opinar, repasa el Codex que tengas en el contexto. Si algo del texto o de la petición contradice el Codex, señálalo; no lo corrijas en silencio.
+Si el Codex, el esquema o la escena vienen vacíos o no están en el contexto, no supongas lo que dirían.
+</fuentes_y_prioridad>`);
+
+  const voz: string[] = [];
+  if (m.narrador?.trim()) voz.push(`Narrador: ${m.narrador.trim()}.`);
+  // La guía de estilo ya va en los prompts que la citan; si no, se añade aquí.
+  if (m.estilo?.trim() && !plantillaSistema.includes("novela.estilo")) voz.push(m.estilo.trim());
+  if (m.muestraVoz?.trim()) voz.push(`Muestra de la voz de la novela (imita su ritmo, registro y tipo de imágenes; no copies sus frases ni su contenido):\n«${m.muestraVoz.trim()}»`);
+  if (voz.length && tarea !== "resumen") partes.push(`<voz>\n${voz.join("\n")}\n</voz>`);
+  if (m.decisiones?.trim()) partes.push(`<estado_de_la_novela>\nDecisiones tomadas y hechos fijados por el autor (respétalos):\n${m.decisiones.trim()}\n</estado_de_la_novela>`);
+
+  if (tarea === "prosa")
+    partes.push(`<protocolo>
+- Entrega solo el texto narrativo, sin preámbulo, títulos ni comentarios.
+- Muestra la emoción con gestos, acciones y objetos; no la nombres ni la expliques. Cierra con un gesto o una imagen, no con un resumen.
+- Diálogo específico de cada personaje según el Codex, nunca genérico.
+- Respeta la longitud pedida.
+- Única excepción al «solo texto»: si cumplir la petición obliga a contradecir el Codex o el esquema, escribe coherente con ellos y añade al final, en una línea aparte, «AVISO: » y la contradicción en una frase.
+</protocolo>`);
+  else if (tarea === "chat")
+    partes.push(`<protocolo>
+- Una tarea por respuesta. No reescribas si se pidió criticar; no critiques si se pidió escribir.
+- Pregunta solo si sin ese dato arriesgas contradecir el Codex. En lo demás, asume lo razonable y dilo en una línea.
+- En CRÍTICA y CONSULTA, empieza citando en una línea los datos del Codex en los que te basas (o di que no hay).
+- En REDACCIÓN, entrega solo el texto narrativo; los avisos de contradicción, al final. Si no se pide longitud, 300-400 palabras.
+- En IDEACIÓN, entre 3 y 7 opciones numeradas de una o dos frases, sin desarrollarlas.
+</protocolo>
+<formato_critica>
+**Lo que funciona** (máximo 3 puntos) · **Lo que falla** (ordenado por gravedad) · **Un cambio concreto para cada fallo**.
+</formato_critica>`);
+  else if (tarea === "codex")
+    partes.push(`<protocolo>
+- Lo que añadas debe encajar con lo que ya ocurre en las escenas y con las entradas relacionadas. No cierres lo que la novela deja abierto.
+- Si la descripción actual contradice el texto, sigue el texto y señálalo al final en una línea que empiece por «AVISO: ».
+</protocolo>`);
+  return partes.join("\n\n");
+}
+
+/** Instrucción para el modo elegido en el chat (vacía en «Auto»). */
+export function instruccionModo(modo: ModoChat | undefined): string {
+  if (!modo || modo === "auto") return "";
+  const nombre = { critica: "CRÍTICA", redaccion: "REDACCIÓN", ideacion: "IDEACIÓN", consulta: "CONSULTA" }[modo];
+  return `Modo de esta respuesta: ${nombre}. Responde solo en este modo.`;
+}
+
+/** Separa las líneas «AVISO: …» del final de un texto generado. */
+export function separarAvisos(t: string): { texto: string; avisos: string[] } {
+  const avisos: string[] = [];
+  const lineas = t.trimEnd().split("\n");
+  while (lineas.length) {
+    const l = lineas[lineas.length - 1].trim();
+    const m = /^(?:\*\*)?(?:⚠️\s*)?AVISO:?(?:\*\*)?\s*(.+)$/i.exec(l);
+    if (m) {
+      avisos.unshift(m[1].replace(/\*\*$/, "").trim());
+      lineas.pop();
+    } else if (!l && avisos.length) lineas.pop();
+    else break;
+  }
+  return { texto: lineas.join("\n").trim(), avisos };
+}
+
 // ── Prompts integrados ───────────────────────────────────────────────────
 
 const SISTEMA_PROSA = `Eres un coescritor de ficción experto que escribe en {{idioma}}.
 Escribes prosa de novela publicable: concreta, sensorial, con diálogos naturales y ritmo variado.
-Respeta la voz, el tiempo verbal y el punto de vista del texto existente. No resumas: dramatiza.
+Respeta la voz, el tiempo verbal y el punto de vista del texto existente{{#si novela.narrador}} (narrador: {{novela.narrador}}){{/si}}. No resumas: dramatiza.
 Devuelve SOLO la prosa, sin títulos, comentarios, comillas envolventes ni notas.
 {{#si novela.estilo}}
 Guía de estilo del autor:
@@ -477,8 +566,14 @@ Desarrolla la entrada «{{entrada.nombre}}» ({{entrada.tipo}}) a partir de su c
     accion: "chat",
     descripcion: "Prompt de sistema del chat con contexto de la novela.",
     modelo: "",
-    sistema: `Eres un colaborador creativo y editor de la novela «{{novela.titulo}}». Respondes en {{idioma}}, de forma concreta y útil.
-Cuando propongas texto narrativo, escríbelo con calidad publicable. Usa el contexto proporcionado y no contradigas el Codex.
+    sistema: `<rol>
+Eres coeditor y colaborador de la novela «{{novela.titulo}}». Respondes en {{idioma}}, de forma concreta.
+Cada petición cae en uno de estos modos; si no está claro cuál, pregúntalo en una línea antes de nada:
+- CRÍTICA: diagnóstico editorial, sin reescribir.
+- REDACCIÓN: texto narrativo de calidad publicable.
+- IDEACIÓN: opciones breves, numeradas, sin desarrollar.
+- CONSULTA: respuesta técnica sobre la novela o el oficio.
+</rol>
 {{#si novela.estilo}}Guía de estilo del autor:
 {{novela.estilo}}{{/si}}`,
     usuario: "{{contexto}}",

@@ -59,8 +59,15 @@ export function instruccionEvitar(): string {
     .map((l) => l.trim())
     .filter((l) => l && !l.startsWith("#"));
   if (!lineas.length) return "";
-  return `PROHIBIDO usar estas palabras, nombres y frases (ni variantes, ni plurales, ni traducciones). Son muletillas que delatan texto escrito por una IA. Si hace falta un nombre propio nuevo, invéntalo sobrio y coherente con el mundo de la novela, nunca de esta lista ni de su estilo; si hace falta una imagen, busca una concreta y propia:
-${lineas.map((l) => `- ${l}`).join("\n")}`;
+  return `<estilo_a_evitar>
+PROHIBIDO usar estas palabras, nombres y frases (ni variantes, ni plurales, ni traducciones). Son muletillas que delatan texto escrito por una IA:
+${lineas.map((l) => `- ${l}`).join("\n")}
+Qué hacer en su lugar (no sustituyas una muletilla por un sinónimo):
+- Nombre propio nuevo: sobrio y coherente con el mundo, la época y la lengua de la novela; mira cómo se llaman los del Codex.
+- Imagen o comparación: un objeto, sonido o gesto concreto que ya esté en la escena, no una abstracción.
+- Emoción: lo que el personaje hace, dice o toca; no la nombres ni la expliques después.
+- Evita la estructura «no era X, era Y», los tríos de adjetivos y los cierres de párrafo que resumen lo que se acaba de mostrar.
+</estilo_a_evitar>`;
 }
 
 /** Nombre del idioma de la interfaz en su propia lengua (valor por defecto de las novelas nuevas). */

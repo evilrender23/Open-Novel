@@ -4,7 +4,7 @@
 import { nuevoId } from "../api";
 import { ajustes, instruccionEvitar, instruccionIdioma } from "../ajustes";
 import { chipModelo } from "../componentes";
-import { contextoCodex, esquema, promptActivo, renderizar, variablesBase } from "../contexto";
+import { bloqueMaestro, contextoCodex, esquema, instruccionModo, MODOS_CHAT, promptActivo, renderizar, variablesBase } from "../contexto";
 import { borrarChat, estado, guardarChat, guardarNota, guardarTexto, novela } from "../estado";
 import { generar, type Generacion } from "../ia";
 import { markdown } from "../markdown";
@@ -181,7 +181,7 @@ function hilo(c: Chat, alCambiarLista: () => void): { el: HTMLElement; repintar:
     }
     const p = promptActivo(n, "chat");
     const vars = { ...variablesBase(n, estado.escenaActual), contexto: construirContexto(c) };
-    const sistema = [renderizar(p.sistema, vars), instruccionEvitar(), instruccionIdioma(n.meta.idioma), renderizar(p.usuario, vars)].filter(Boolean).join("\n\n").trim();
+    const sistema = [renderizar(p.sistema, vars), bloqueMaestro(n, "chat", p.sistema), instruccionEvitar(), instruccionIdioma(n.meta.idioma), renderizar(p.usuario, vars), instruccionModo(c.modo)].filter(Boolean).join("\n\n").trim();
     const modelo = c.modelo || p.modelo || ajustes.modelos.chat;
     const estadoVivo = { gen: null as unknown as Generacion, texto: "", repintar };
     const gen = generar({
@@ -247,6 +247,25 @@ function hilo(c: Chat, alCambiarLista: () => void): { el: HTMLElement; repintar:
     ),
   );
 
+  const modoBtn = h("button", { type: "button", class: "ctx-toggle ctx-mode" });
+  const pintarModo = () => {
+    const m = MODOS_CHAT.find((x) => x.valor === (c.modo ?? "auto"))!;
+    modoBtn.textContent = `Modo: ${m.texto}`;
+    modoBtn.classList.toggle("is-on", m.valor !== "auto");
+    modoBtn.dataset.tip = m.desc;
+  };
+  pintarModo();
+  modoBtn.addEventListener("click", () =>
+    menu(
+      MODOS_CHAT.map((m) => ({
+        texto: `${m.texto} — ${m.desc}`,
+        icono: (c.modo ?? "auto") === m.valor ? ("check" as const) : undefined,
+        accion: () => ((c.modo = m.valor), pintarModo(), guardarChat(c, false)),
+      })),
+      modoBtn,
+    ),
+  );
+
   const u = buscarEscena(n.meta, estado.escenaActual);
   const composer = h(
     "div",
@@ -256,6 +275,7 @@ function hilo(c: Chat, alCambiarLista: () => void): { el: HTMLElement; repintar:
       "div",
       { class: "composer-row" },
       chipModelo(() => c.modelo || ajustes.modelos.chat, (r) => ((c.modelo = r), guardarChat(c, false))),
+      modoBtn,
       h("span", { class: "composer-sep" }),
       toggle("Esquema", () => c.contexto.esquema, () => (c.contexto.esquema = !c.contexto.esquema)),
       codexBtn,

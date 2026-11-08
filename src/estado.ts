@@ -313,12 +313,12 @@ Puedes borrar la marca de la primera línea si quieres que la app no regenere es
 - Autor: ${n.meta.autor || "—"}
 - Género: ${n.meta.genero || "—"}
 - Idioma de la prosa: ${idiomaEscritura(n.meta.idioma)}
-${n.meta.sinopsis ? `\n### Sinopsis\n\n${n.meta.sinopsis}\n` : ""}${n.meta.estilo ? `\n### Guía de estilo\n\n${n.meta.estilo}\n` : ""}
+${n.meta.sinopsis ? `\n### Sinopsis\n\n${n.meta.sinopsis}\n` : ""}${n.meta.narrador ? `- Narrador: ${n.meta.narrador}\n` : ""}${n.meta.estilo ? `\n### Guía de estilo\n\n${n.meta.estilo}\n` : ""}${n.meta.muestraVoz ? `\n### Muestra de voz (imita su ritmo y registro, no su contenido)\n\n${n.meta.muestraVoz}\n` : ""}${n.meta.decisiones ? `\n### Estado de la novela y decisiones tomadas (respétalas)\n\n${n.meta.decisiones}\n` : ""}
 ## Reglas
 
 1. Escribe la prosa en el idioma de la novela y respeta la guía de estilo.
 2. Antes de reescribir una escena existente, léela entera. No borres texto del autor salvo que se te pida.
-3. Mantén coherencia con el Codex: consulta \`codex/\` antes de inventar datos de personajes o lugares.
+3. Mantén coherencia con el Codex: consulta \`codex/\` antes de inventar datos de personajes o lugares. Si las fuentes se contradicen manda este orden: Codex, esquema y resúmenes, texto de la escena, petición del usuario. Señala las contradicciones en vez de corregirlas en silencio.
 4. Cuando crees personajes, lugares u objetos nuevos importantes, añade su entrada en \`codex/\`.
 5. Actualiza el \`resumen\` de una escena en \`novela.json\` cuando cambies su contenido de forma sustancial.
 `;

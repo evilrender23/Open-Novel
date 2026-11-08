@@ -55,6 +55,9 @@ export interface MetaNovela {
   idioma: string;
   sinopsis: string;
   estilo: string; // guía de estilo / instrucciones permanentes para la IA
+  narrador: string; // persona y tiempo verbal («Tercera persona cercana, pasado»)
+  muestraVoz: string; // ~150 palabras ejemplares que la IA debe imitar
+  decisiones: string; // estado de la novela: decisiones tomadas, lo que ya se sabe
   objetivoPalabras: number;
   creado: number;
   modificado: number;
@@ -135,6 +138,8 @@ export interface Chat {
   titulo: string;
   modelo: string;
   contexto: { esquema: boolean; codex: "fijadas" | "todas" | "ninguna"; escena: boolean; capitulo: boolean; notas: boolean };
+  /** Modo de trabajo de la IA (ver MODOS_CHAT en contexto.ts). */
+  modo?: "auto" | "critica" | "redaccion" | "ideacion" | "consulta";
   mensajes: MensajeChat[];
   creado: number;
   modificado: number;
@@ -197,6 +202,9 @@ export function metaNueva(titulo: string, autor = ""): MetaNovela {
     idioma: IDIOMAS.find((x) => x.codigo === idiomaUI())?.nombre ?? "Español",
     sinopsis: "",
     estilo: "",
+    narrador: "",
+    muestraVoz: "",
+    decisiones: "",
     objetivoPalabras: 80000,
     creado: ahora,
     modificado: ahora,

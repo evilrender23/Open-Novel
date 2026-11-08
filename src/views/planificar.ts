@@ -417,7 +417,7 @@ export function abrirMetadatos(): void {
     });
     return i;
   };
-  const area = (k: "sinopsis" | "estilo", rows: number, placeholder: string) => {
+  const area = (k: "sinopsis" | "estilo" | "muestraVoz" | "decisiones", rows: number, placeholder: string) => {
     const t = h("textarea", { class: "textarea", rows, placeholder });
     t.value = meta[k];
     t.addEventListener("input", () => {
@@ -453,9 +453,30 @@ export function abrirMetadatos(): void {
     ),
     campo("Sinopsis", area("sinopsis", 4, "De qué trata la novela. La IA la usa como contexto."), "Se incluye en los prompts del Codex y del chat."),
     campo(
+      "Narrador",
+      (() => {
+        const i = h("input", { class: "input", value: meta.narrador ?? "", placeholder: "p. ej. Tercera persona cercana, pasado" });
+        i.setAttribute("list", "narradores");
+        i.addEventListener("input", () => ((meta.narrador = i.value), guardarMeta("meta")));
+        const opciones = ["Tercera persona cercana, pasado", "Tercera persona cercana, presente", "Tercera persona omnisciente, pasado", "Primera persona, pasado", "Primera persona, presente", "Segunda persona, presente", "Varios narradores en tercera cercana, pasado"];
+        return h("div", null, i, h("datalist", { id: "narradores" }, ...opciones.map((o) => h("option", { value: o }))));
+      })(),
+      "Persona y tiempo verbal. La IA no tiene que deducirlos de la escena.",
+    ),
+    campo(
       "Guía de estilo para la IA",
-      area("estilo", 4, "Voz, tiempo verbal, punto de vista, influencias, cosas a evitar…"),
-      "Se añade al prompt de sistema de toda la prosa generada.",
+      area("estilo", 5, "Reglas que se puedan comprobar: «frases cortas y concretas», «la emoción se muestra con gestos y objetos, no se nombra», «humor seco», «metáforas de oído antes que de vista», «cada escena termina en un gesto o una imagen»…"),
+      "Mejor reglas verificables que adjetivos («sobrio», «evocador»). Se añade a todo lo que genera la IA.",
+    ),
+    campo(
+      "Muestra de voz",
+      area("muestraVoz", 5, "Pega unas 150 palabras de la novela que consideres ejemplares."),
+      "Es lo que más mejora la imitación del estilo. La IA imita el ritmo y el registro, no copia el contenido.",
+    ),
+    campo(
+      "Estado de la novela y decisiones tomadas",
+      area("decisiones", 5, "Lo que ya está decidido y no hay que repetir: «Tomás miente sobre su encargo», «el Durmiente no aparece hasta el acto III», «Nerea nunca dice palabrotas»…"),
+      "La IA lo trata como hechos fijados y lo respeta en todo lo que escribe.",
     ),
   );
   m.footer.append(btn("Listo", { variant: "primary", onclick: () => m.close() }));

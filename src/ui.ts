@@ -297,16 +297,22 @@ export type ItemMenu =
   | { titulo: string };
 
 let menuAbierto: HTMLElement | null = null;
+let teclasMenu: ((e: KeyboardEvent) => void) | null = null;
 
 export function cerrarMenu(): void {
   menuAbierto?.remove();
   menuAbierto = null;
+  if (teclasMenu) document.removeEventListener("keydown", teclasMenu, true);
+  teclasMenu = null;
 }
 
 /** Abre un menú en (x, y) o anclado bajo un elemento. */
-export function menu(items: ItemMenu[], pos: { x: number; y: number } | HTMLElement): void {
+export function menu(items: ItemMenu[], pos: { x: number; y: number } | HTMLElement, opciones: { mantenerFoco?: boolean } = {}): void {
   cerrarMenu();
   const el = h("div", { class: "menu", role: "menu" });
+  // Con mantenerFoco (menú contextual del editor) el campo de texto conserva el foco y la
+  // selección se sigue viendo: ni el menú ni sus botones roban el foco al pulsarlos.
+  if (opciones.mantenerFoco) el.addEventListener("mousedown", (e) => e.preventDefault());
   const botones: HTMLButtonElement[] = [];
   for (const it of items) {
     if ("separador" in it) el.append(h("div", { class: "menu-sep" }));
@@ -346,6 +352,28 @@ export function menu(items: ItemMenu[], pos: { x: number; y: number } | HTMLElem
   el.style.left = `${x}px`;
   el.style.top = `${y}px`;
   let foco = -1;
+  if (opciones.mantenerFoco) {
+    // Teclado sin mover el foco: flechas resaltan, Intro ejecuta, Esc cierra.
+    teclasMenu = (e: KeyboardEvent) => {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        e.stopPropagation();
+        botones[foco]?.classList.remove("is-focus");
+        foco = (foco + (e.key === "ArrowDown" ? 1 : -1) + botones.length) % botones.length;
+        botones[foco]?.classList.add("is-focus");
+      } else if (e.key === "Enter" && foco >= 0) {
+        e.preventDefault();
+        e.stopPropagation();
+        botones[foco].click();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        cerrarMenu();
+      } else cerrarMenu();
+    };
+    document.addEventListener("keydown", teclasMenu, true);
+    return;
+  }
   el.tabIndex = -1;
   el.focus();
   el.addEventListener("keydown", (e) => {

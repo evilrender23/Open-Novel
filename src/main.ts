@@ -199,7 +199,7 @@ document.addEventListener("keydown", (e) => {
 document.addEventListener("contextmenu", (e) => {
   if (e.defaultPrevented || import.meta.env.DEV) return;
   const destino = e.target as HTMLElement;
-  if (destino.closest?.("input, textarea, [contenteditable='true']")) return;
+  if (destino.closest?.("input, textarea, [contenteditable]:not([contenteditable='false'])")) return;
   const sel = window.getSelection();
   if (sel && !sel.isCollapsed && sel.toString().trim()) return;
   e.preventDefault();

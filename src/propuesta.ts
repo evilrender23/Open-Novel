@@ -3,7 +3,7 @@
 // Codex y la planificación.
 
 import { instruccionEvitar, instruccionIdioma, nombreModelo, type Funcion } from "./ajustes";
-import { conCodex, promptActivo, renderizar, variablesBase, type Variables } from "./contexto";
+import { bloqueMaestro, conCodex, promptActivo, renderizar, separarAvisos, variablesBase, type Variables } from "./contexto";
 import { novela } from "./estado";
 import { generar, modeloPara, type Generacion, type Mensaje } from "./ia";
 import type { AccionPrompt } from "./modelo";
@@ -35,7 +35,7 @@ export function preparar(accion: AccionPrompt, vars: Variables, escenaId?: strin
   const p = promptActivo(n, accion);
   const v = conCodex(n, { ...variablesBase(n, escenaId), ...vars }, escenaId);
   return {
-    sistema: [renderizar(p.sistema, v), instruccionEvitar(), instruccionIdioma(n.meta.idioma)].filter(Boolean).join("\n\n"),
+    sistema: [renderizar(p.sistema, v), bloqueMaestro(n, FUNCION_DE[accion] === "resumen" ? "resumen" : FUNCION_DE[accion] === "codex" ? "codex" : FUNCION_DE[accion] === "chat" ? "chat" : "prosa", p.sistema), instruccionEvitar(), instruccionIdioma(n.meta.idioma)].filter(Boolean).join("\n\n"),
     usuario: renderizar(p.usuario, v),
     modelo: modelo || modeloPara(FUNCION_DE[accion], p.modelo),
     nombrePrompt: p.nombre,
@@ -56,6 +56,7 @@ export interface AccionPropuesta {
 }
 
 export class Propuesta {
+  private avisos: string[] = [];
   readonly el: HTMLElement;
   private cuerpo: HTMLElement;
   private estadoEl: HTMLElement;
@@ -173,7 +174,9 @@ Reglas:
     gen.promesa
       .then((t) => {
         if (this.gen !== gen) return;
-        this.mostrarFinal(limpiar(t) || anterior);
+        const { texto, avisos } = separarAvisos(limpiar(t));
+        this.avisos = avisos;
+        this.mostrarFinal(texto || anterior);
       })
       .catch((e) => {
         if (this.gen !== gen) return;
@@ -195,7 +198,9 @@ Reglas:
     });
     salida.textContent = texto;
     this.salida = salida;
-    this.cuerpo.replaceChildren(salida);
+    // Contradicciones con el Codex o el esquema que la IA ha señalado (no se insertan en el texto).
+    const avisos = this.avisos.map((a) => h("div", { class: "prop-aviso" }, icon("alert"), h("span", null, a)));
+    this.cuerpo.replaceChildren(...avisos, salida);
     this.estadoEl.replaceChildren(h("span", null, this.prep ? nombreModelo(this.prep.modelo) : ""));
     this.pieFinal();
   }
