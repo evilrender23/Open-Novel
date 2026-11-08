@@ -14,6 +14,7 @@
 import YAML from "yaml";
 
 import { api, nuevoId } from "./api";
+import { IDIOMAS, idiomaUI, t } from "./i18n";
 
 export type EstadoEscena = "idea" | "borrador" | "revision" | "final";
 export const ESTADOS: { valor: EstadoEscena; texto: string }[] = [
@@ -173,14 +174,14 @@ export interface Novela {
 
 // ── Construcción ─────────────────────────────────────────────────────────
 
-export function escenaNueva(titulo = "Escena nueva"): Escena {
+export function escenaNueva(titulo = t("Escena nueva")): Escena {
   return { id: nuevoId("e"), titulo, resumen: "", estado: "idea", pov: "", etiquetas: [], objetivo: 0 };
 }
-export function capituloNuevo(titulo = "Capítulo nuevo"): Capitulo {
-  return { id: nuevoId("c"), titulo, escenas: [escenaNueva("Escena 1")] };
+export function capituloNuevo(titulo = t("Capítulo nuevo")): Capitulo {
+  return { id: nuevoId("c"), titulo, escenas: [escenaNueva(t("Escena 1"))] };
 }
-export function actoNuevo(titulo = "Acto nuevo"): Acto {
-  return { id: nuevoId("a"), titulo, capitulos: [capituloNuevo("Capítulo 1")] };
+export function actoNuevo(titulo = t("Acto nuevo")): Acto {
+  return { id: nuevoId("a"), titulo, capitulos: [capituloNuevo(t("Capítulo 1"))] };
 }
 
 export function metaNueva(titulo: string, autor = ""): MetaNovela {
@@ -193,13 +194,13 @@ export function metaNueva(titulo: string, autor = ""): MetaNovela {
     autor,
     serie: "",
     genero: "",
-    idioma: "español",
+    idioma: IDIOMAS.find((x) => x.codigo === idiomaUI())?.nombre ?? "Español",
     sinopsis: "",
     estilo: "",
     objetivoPalabras: 80000,
     creado: ahora,
     modificado: ahora,
-    actos: [actoNuevo("Acto I")],
+    actos: [actoNuevo(t("Acto I"))],
     estadisticas: {},
     promptsActivos: {},
   };

@@ -3,7 +3,7 @@
 // reglas de inclusión en el contexto de la IA y menciones detectadas.
 
 import { avatar, chips, segmentado } from "../componentes";
-import { escenasConEntrada } from "../contexto";
+import { contextoDesarrollo, escenasConEntrada } from "../contexto";
 import { borrarCodex, estado, guardarCodex, novela } from "../estado";
 import { buscarEscena, entradaNueva, TIPOS_CODEX, todasLasEscenas, type EntradaCodex, type TipoCodex } from "../modelo";
 import { Propuesta } from "../propuesta";
@@ -308,7 +308,10 @@ function editorEntrada(e: EntradaCodex, seleccionar: (id: string) => void): HTML
     const p = new Propuesta({
       titulo: `Desarrollar «${e.nombre}»`,
       accion: "codex",
-      vars: () => ({ "entrada.nombre": e.nombre, "entrada.tipo": TIPOS_CODEX.find((t) => t.valor === e.tipo)?.texto ?? e.tipo, "entrada.descripcion": e.descripcion || "(vacía)", beat: e.nombre }),
+      vars: () => ({ ...(() => {
+        const c = contextoDesarrollo(n, e);
+        return { "entrada.relacionadas": c.relacionadas, "entrada.apariciones": c.apariciones };
+      })(), "entrada.nombre": e.nombre, "entrada.tipo": TIPOS_CODEX.find((t) => t.valor === e.tipo)?.texto ?? e.tipo, "entrada.descripcion": e.descripcion || "(vacía)", beat: e.nombre }),
       acciones: [
         { texto: "Reemplazar", icono: "check", primaria: true, fn: (t) => ((e.descripcion = t), (descripcion.value = t), guardar()) },
         { texto: "Añadir al final", icono: "plus", fn: (t) => ((e.descripcion = `${e.descripcion.trim()}\n\n${t}`.trim()), (descripcion.value = e.descripcion), guardar()) },

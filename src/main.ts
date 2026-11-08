@@ -4,7 +4,8 @@
 import "./styles.css";
 
 import { iniciarEventos } from "./api";
-import { cargarAjustes } from "./ajustes";
+import { ajustes, cargarAjustes } from "./ajustes";
+import { cargarIdioma, idiomaSistema, observar } from "./i18n";
 import { abrirNovela, cerrarNovela, estado, novela, vaciarGuardado, type Vista } from "./estado";
 import { todasLasEscenas, TIPOS_CODEX } from "./modelo";
 import { irA, montarShell, modoFoco, NAV, registrarVistas, iconoTipo } from "./shell";
@@ -204,13 +205,14 @@ document.addEventListener("contextmenu", (e) => {
   e.preventDefault();
 });
 
-
 window.addEventListener("beforeunload", () => void vaciarGuardado());
 
 // ── Arranque ─────────────────────────────────────────────────────────────
 
 async function iniciar(): Promise<void> {
   await cargarAjustes();
+  await cargarIdioma(ajustes.idioma || idiomaSistema());
+  observar();
   await iniciarEventos();
   iniciarActualizador();
   const ultima = localStorage.getItem("ultima-novela");

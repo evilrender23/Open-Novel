@@ -26,6 +26,20 @@ Otros: **buscar y reemplazar** en la escena o en toda la novela (⌘F, ⌘⌥F, 
 claro/oscuro/sistema con acentos, tipografía del editor configurable, estadísticas
 de palabras diarias y objetivo de la novela.
 
+## Idiomas
+
+La interfaz está en 15 idiomas: español, inglés, portugués, francés, italiano, alemán,
+catalán, neerlandés, polaco, ruso, ucraniano, turco, japonés, chino simplificado y
+coreano (Ajustes → Apariencia → Idioma; por defecto, el del sistema).
+
+El idioma en que **escribe la IA** es independiente: el de cada novela (Planificar →
+Idioma de la prosa), el de la interfaz o uno fijo de una lista de ~37 idiomas y
+variantes (o cualquier otro escrito a mano). Con «Forzar el idioma» se añade a todos los
+prompts la orden de escribir solo en ese idioma aunque el contexto esté en otro.
+
+Para traducir textos nuevos de la interfaz: `node scripts/i18n-extraer.mjs && node scripts/i18n-traducir.mjs`
+(usa Claude Code CLI y solo pide los que faltan).
+
 ## Instalación (se actualiza sola desde `main`)
 
 Un solo comando descarga el código de la rama `main`, lo compila en tu equipo y lo

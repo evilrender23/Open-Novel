@@ -1,6 +1,7 @@
 // Estado global de la novela abierta, guardado diferido y aviso de cambios.
 
 import { api } from "./api";
+import { idiomaEscritura } from "./ajustes";
 import {
   cargarNovela,
   contarPalabras,
@@ -311,7 +312,7 @@ Puedes borrar la marca de la primera línea si quieres que la app no regenere es
 - Título: ${n.meta.titulo}${n.meta.subtitulo ? ` — ${n.meta.subtitulo}` : ""}
 - Autor: ${n.meta.autor || "—"}
 - Género: ${n.meta.genero || "—"}
-- Idioma de la prosa: ${n.meta.idioma || "español"}
+- Idioma de la prosa: ${idiomaEscritura(n.meta.idioma)}
 ${n.meta.sinopsis ? `\n### Sinopsis\n\n${n.meta.sinopsis}\n` : ""}${n.meta.estilo ? `\n### Guía de estilo\n\n${n.meta.estilo}\n` : ""}
 ## Reglas
 

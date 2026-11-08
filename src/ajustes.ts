@@ -1,6 +1,7 @@
 // Ajustes globales de la aplicación (no dependen de la novela abierta).
 
 import { api } from "./api";
+import { IDIOMAS, IDIOMAS_ESCRITURA, idiomaUI } from "./i18n";
 
 export type TipoProveedor = "claude-code" | "anthropic" | "openai" | "openrouter" | "ollama" | "compatible";
 
@@ -34,6 +35,12 @@ export interface Ajustes {
   actualizacionesAuto: boolean;
   /** Nombres, palabras y frases típicas de la IA que nunca debe usar (una por línea). */
   palabrasEvitar: string;
+  /** Idioma de la interfaz ("" = el del sistema). */
+  idioma: string;
+  /** Idioma en que escribe la IA: "novela" (el de cada novela), "interfaz" o un idioma concreto. */
+  idiomaIA: string;
+  /** Añadir a todo prompt la orden de escribir solo en ese idioma. */
+  forzarIdioma: boolean;
 }
 
 export const PROVEEDORES_BASE: Record<TipoProveedor, { nombre: string; url: string; modelos: string[]; necesitaClave: boolean }> = {
@@ -54,6 +61,31 @@ export function instruccionEvitar(): string {
   if (!lineas.length) return "";
   return `PROHIBIDO usar estas palabras, nombres y frases (ni variantes, ni plurales, ni traducciones). Son muletillas que delatan texto escrito por una IA. Si hace falta un nombre propio nuevo, invéntalo sobrio y coherente con el mundo de la novela, nunca de esta lista ni de su estilo; si hace falta una imagen, busca una concreta y propia:
 ${lineas.map((l) => `- ${l}`).join("\n")}`;
+}
+
+/** Nombre del idioma de la interfaz en su propia lengua (valor por defecto de las novelas nuevas). */
+export function nombreIdiomaUI(): string {
+  return IDIOMAS.find((x) => x.codigo === idiomaUI())?.nombre ?? "Español";
+}
+
+/**
+ * Idioma en que debe escribir la IA. `idiomaNovela` es el campo «Idioma de la
+ * prosa» de la novela abierta (texto libre: «español», «English», «Galego»…).
+ */
+export function idiomaEscritura(idiomaNovela?: string): string {
+  const elegido = ajustes.idiomaIA === "interfaz" ? nombreIdiomaUI() : ajustes.idiomaIA === "novela" || !ajustes.idiomaIA ? idiomaNovela?.trim() || nombreIdiomaUI() : ajustes.idiomaIA;
+  const c = elegido.trim().toLocaleLowerCase();
+  const conocido = IDIOMAS_ESCRITURA.find((x) => x.codigo.toLowerCase() === c || x.nombre.toLocaleLowerCase() === c || x.ingles.toLowerCase() === c);
+  // Con el nombre en inglés al lado, los modelos no dudan («Català (Catalan)»).
+  return conocido && conocido.nombre !== conocido.ingles ? `${conocido.nombre} (${conocido.ingles})` : elegido;
+}
+
+/** Orden de idioma para el prompt de sistema (vacía si no se fuerza). */
+export function instruccionIdioma(idiomaNovela?: string): string {
+  if (!ajustes.forzarIdioma) return "";
+  const idioma = idiomaEscritura(idiomaNovela);
+  return `IDIOMA OBLIGATORIO: escribe toda tu respuesta en ${idioma}, aunque estas instrucciones, el contexto, el Codex, el texto anterior o el mensaje del usuario estén en otro idioma. No traduzcas los nombres propios ni mezcles idiomas (salvo diálogos que lo exijan en la historia). Usa la ortografía, la puntuación y las comillas de diálogo propias de ese idioma.
+LANGUAGE: write your entire answer in ${idioma}, whatever the language of these instructions or the context.`;
 }
 
 export const ACENTOS = ["#0053fd", "#6d2ebf", "#1f8a65", "#c25e2c", "#cf2d56", "#4c7f8c", "#17171a"];
@@ -98,6 +130,9 @@ function predeterminados(): Ajustes {
     palabrasContexto: 1500,
     actualizacionesAuto: true,
     palabrasEvitar: PALABRAS_EVITAR_DEFECTO,
+    idioma: "",
+    idiomaIA: "novela",
+    forzarIdioma: true,
   };
 }
 

@@ -333,7 +333,7 @@ function filaArbol(o: {
       : o.punto
         ? h("span", { class: `status-dot is-${o.punto}` })
         : null,
-    h("span", { class: "tree-text" }, o.texto),
+    h("span", { class: "tree-text", attrs: { translate: "no" } }, o.texto),
     o.meta ? h("span", { class: "tree-meta" }, o.meta) : null,
     h("button", { type: "button", class: "tree-more", attrs: { "aria-label": "Acciones" }, onclick: (e: MouseEvent) => {
       e.stopPropagation();
@@ -385,8 +385,8 @@ class EditorEscena {
     this.cabecera = h("div", { class: "ed-header" });
     this.ta = h("textarea", { class: "ed-text", spellcheck: true, placeholder: "Empieza a escribir… o describe un beat abajo y deja que la IA te proponga prosa." });
     this.ta.value = n.textos.get(id) ?? "";
-    this.fondo = h("div", { class: "ed-backdrop", attrs: { "aria-hidden": "true" } });
-    this.capaBusqueda = h("div", { class: "ed-backdrop ed-find-layer", attrs: { "aria-hidden": "true" } });
+    this.fondo = h("div", { class: "ed-backdrop", attrs: { "aria-hidden": "true", translate: "no" } });
+    this.capaBusqueda = h("div", { class: "ed-backdrop ed-find-layer", attrs: { "aria-hidden": "true", translate: "no" } });
     this.zonaPropuesta = h("div", { class: "ed-proposals" });
     this.barraSel = h("div", { class: "selbar", hidden: true });
     this.beat = h("textarea", { class: "composer-input", rows: 1, placeholder: "Beat: ¿qué ocurre a continuación? (⌘↵ genera prosa)" });

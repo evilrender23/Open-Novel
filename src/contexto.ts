@@ -1,7 +1,7 @@
 // Contexto para la IA: detección de menciones del Codex, plantillas de prompts
 // con {{variables}} y prompts integrados (como los de NovelCrafter).
 
-import { ajustes } from "./ajustes";
+import { ajustes, idiomaEscritura } from "./ajustes";
 import {
   buscarEscena,
   todasLasEscenas,
@@ -99,6 +99,56 @@ export function formatearEntrada(n: Novela, e: EntradaCodex, hastaEscena?: strin
   return lineas.join("\n");
 }
 
+/**
+ * Contexto para desarrollar una entrada del Codex: sus relaciones (en los dos
+ * sentidos, con la ficha completa) y cómo aparece en la novela (escenas donde se
+ * la menciona o es punto de vista, con su resumen y los párrafos donde sale).
+ */
+export function contextoDesarrollo(n: Novela, e: EntradaCodex, maxPalabras = 3000): { relacionadas: string; apariciones: string } {
+  const ids = new Set(e.relaciones);
+  for (const x of n.codex.values()) if (x.id !== e.id && x.relaciones.includes(e.id)) ids.add(x.id);
+  const relacionadas = [...ids]
+    .map((id) => n.codex.get(id))
+    .filter((x): x is EntradaCodex => !!x)
+    .map((x) => {
+      // Escenas que comparten con la entrada: la relación vista en el texto.
+      const juntas = escenasConEntrada(n, x.id).filter((a) => escenasConEntrada(n, e.id).some((b) => b.escenaId === a.escenaId)).length;
+      return formatearEntrada(n, x) + (juntas ? `\nCoinciden en ${juntas} escena${juntas === 1 ? "" : "s"}.` : "");
+    })
+    .join("\n\n");
+
+  const bloques: string[] = [];
+  let palabras = 0;
+  const escenas = new Map(todasLasEscenas(n.meta).map((u) => [u.escena.id, u]));
+  const nombresRel = new Set([...ids].flatMap((id) => {
+    const x = n.codex.get(id);
+    return x ? [x.id] : [];
+  }));
+  for (const a of escenasConEntrada(n, e.id)) {
+    const u = escenas.get(a.escenaId);
+    if (!u) continue;
+    const texto = n.textos.get(u.escena.id) ?? "";
+    const parrafos = texto.split(/\n\s*\n/).filter((p) => menciones(n, p).some((m) => m.entrada.id === e.id));
+    // Primero los párrafos donde coincide con alguna entrada relacionada.
+    parrafos.sort((p, q) => Number(menciones(n, q).some((m) => nombresRel.has(m.entrada.id))) - Number(menciones(n, p).some((m) => nombresRel.has(m.entrada.id))));
+    const lineas = [`### Cap. ${u.numCapitulo} «${u.capitulo.titulo}» · ${u.escena.titulo}${a.pov ? " (es el punto de vista)" : ""}`];
+    if (u.escena.resumen.trim()) lineas.push(`Resumen: ${u.escena.resumen.trim()}`);
+    for (const p of parrafos.slice(0, 3)) {
+      const t = p.trim();
+      const w = t.split(/\s+/).length;
+      if (palabras + w > maxPalabras) break;
+      palabras += w;
+      lineas.push(`> ${t.replace(/\n/g, " ")}`);
+    }
+    bloques.push(lineas.join("\n"));
+    if (palabras >= maxPalabras) {
+      bloques.push("(hay más apariciones; se omiten por longitud)");
+      break;
+    }
+  }
+  return { relacionadas, apariciones: bloques.join("\n\n") };
+}
+
 /** Contexto del Codex: entradas "siempre" + las mencionadas en los textos dados. */
 export function contextoCodex(n: Novela, textos: string[], modo: "auto" | "todas" | "fijadas" = "auto", hastaEscena?: string): string {
   const ids = new Set<string>();
@@ -175,6 +225,8 @@ export const VARIABLES_DOC: { nombre: string; desc: string }[] = [
   { nombre: "novela.sinopsis", desc: "Sinopsis" },
   { nombre: "novela.estilo", desc: "Guía de estilo de la novela" },
   { nombre: "idioma", desc: "Idioma de la prosa" },
+  { nombre: "entrada.relacionadas", desc: "Codex: fichas de las entradas relacionadas" },
+  { nombre: "entrada.apariciones", desc: "Codex: escenas y párrafos donde aparece la entrada" },
   { nombre: "codex", desc: "Entradas del Codex relevantes (siempre + mencionadas)" },
   { nombre: "esquema", desc: "Esquema completo con resúmenes" },
   { nombre: "historia_previa", desc: "Resúmenes de las escenas anteriores" },
@@ -212,7 +264,7 @@ export function variablesBase(n: Novela, escenaId?: string): Variables {
     "novela.genero": n.meta.genero,
     "novela.sinopsis": n.meta.sinopsis,
     "novela.estilo": n.meta.estilo,
-    idioma: n.meta.idioma || "español",
+    idioma: idiomaEscritura(n.meta.idioma),
   };
   const u = escenaId ? buscarEscena(n.meta, escenaId) : undefined;
   if (u) {
@@ -397,14 +449,23 @@ Reescribe el fragmento aplicando "mostrar, no contar": sustituye emociones y jui
     accion: "codex",
     descripcion: "Amplía la descripción de una entrada del Codex coherente con la novela.",
     modelo: "",
-    sistema: "Eres un asistente de construcción de mundos para novelistas. Escribes en {{idioma}}. Devuelve solo la descripción, en prosa breve y útil para escribir (aspecto, rasgos, historia, voz, secretos), sin títulos.",
+    sistema: `Eres un asistente de construcción de mundos para novelistas. Escribes en {{idioma}}. Devuelve solo la descripción, en prosa breve y útil para escribir (aspecto, rasgos, historia, voz, secretos), sin títulos.
+Antes de escribir, revisa las entradas relacionadas y cómo aparece la entrada en las escenas: deduce de ahí su papel, su forma de hablar y actuar y sus vínculos. Todo lo que añadas debe ser coherente con lo que ya pasa en el texto (no contradigas hechos, edades, lugares ni relaciones), aprovechar lo que el texto sugiere y no cerrar lo que la novela aún deja abierto.`,
     usuario: `Novela: {{novela.titulo}}{{#si novela.genero}} ({{novela.genero}}){{/si}}
 {{#si novela.sinopsis}}Sinopsis: {{novela.sinopsis}}{{/si}}
+
+{{#si entrada.relacionadas}}<relacionadas>
+{{entrada.relacionadas}}
+</relacionadas>{{/si}}
+
+{{#si entrada.apariciones}}<apariciones_en_la_novela>
+{{entrada.apariciones}}
+</apariciones_en_la_novela>{{/si}}
 
 {{#si codex}}Otras entradas del Codex:
 {{codex}}{{/si}}
 
-Desarrolla la entrada «{{entrada.nombre}}» ({{entrada.tipo}}). Descripción actual:
+Desarrolla la entrada «{{entrada.nombre}}» ({{entrada.tipo}}) a partir de su contexto en la novela. Descripción actual:
 {{entrada.descripcion}}
 
 {{#si instrucciones}}Indicaciones: {{instrucciones}}{{/si}}`,

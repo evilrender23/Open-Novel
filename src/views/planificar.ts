@@ -19,6 +19,8 @@ import {
 } from "../estructura";
 import { ESTADOS, TIPOS_CODEX, todasLasEscenas, type Capitulo, type Escena, type TipoCodex } from "../modelo";
 import { type ResultadoVista } from "../shell";
+import { ajustes } from "../ajustes";
+import { IDIOMAS_ESCRITURA } from "../i18n";
 import { btn, campo, h, icon, menu, modal, num, select, toast, vacio } from "../ui";
 import { abrirEscena, resumirEscena } from "./escribir";
 
@@ -438,7 +440,15 @@ export function abrirMetadatos(): void {
       campo("Autor/a", texto("autor")),
       campo("Serie", texto("serie", "Opcional")),
       campo("Género", texto("genero", "p. ej. fantasía oscura, thriller…")),
-      campo("Idioma de la prosa", texto("idioma")),
+      campo(
+        "Idioma de la prosa",
+        (() => {
+          const i = texto("idioma");
+          i.setAttribute("list", "idiomas-escritura");
+          return h("div", null, i, h("datalist", { id: "idiomas-escritura" }, ...IDIOMAS_ESCRITURA.map((x) => h("option", { value: x.nombre }))));
+        })(),
+        ajustes.idiomaIA === "novela" ? "La IA escribe esta novela en este idioma." : "Ahora mismo la IA usa el idioma fijado en Ajustes → Inteligencia artificial.",
+      ),
       campo("Objetivo de palabras", objetivo),
     ),
     campo("Sinopsis", area("sinopsis", 4, "De qué trata la novela. La IA la usa como contexto."), "Se incluye en los prompts del Codex y del chat."),

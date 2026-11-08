@@ -2,12 +2,14 @@
 // función, Claude Code CLI y biblioteca.
 
 import { api, nuevoId } from "../api";
-import { ACENTOS, PALABRAS_EVITAR_DEFECTO, ajustes, guardarAjustes, modelosDisponibles, PROVEEDORES_BASE, type Funcion, type Proveedor, type TipoProveedor } from "../ajustes";
+import { novela } from "../estado";
+import { ACENTOS, PALABRAS_EVITAR_DEFECTO, ajustes, idiomaEscritura, guardarAjustes, modelosDisponibles, PROVEEDORES_BASE, type Funcion, type Proveedor, type TipoProveedor } from "../ajustes";
 import { chips, segmentado } from "../componentes";
 import { generar, listarModelos } from "../ia";
 import { actualizarEstado } from "../shell";
 import { btn, campo, confirmar, errMsg, h, icon, menu, modal, select, spinner } from "../ui";
 import { reiniciarInfoClaude } from "./agente";
+import { IDIOMAS, IDIOMAS_ESCRITURA, idiomaSistema, locale } from "../i18n";
 import {
   alActualizar,
   aplicarActualizacion,
@@ -63,9 +65,27 @@ function apariencia(): HTMLElement {
   };
   const resaltar = h("input", { type: "checkbox", checked: ajustes.resaltarCodex });
   resaltar.addEventListener("change", () => ((ajustes.resaltarCodex = resaltar.checked), guardarAjustes()));
+  const sistema = IDIOMAS.find((x) => x.codigo === idiomaSistema())?.nombre ?? "English";
   return h(
     "div",
     null,
+    seccion(
+      "Idioma",
+      campo(
+        "Idioma de la interfaz",
+        select(
+          [{ valor: "", texto: `Idioma del sistema (${sistema})` }, ...IDIOMAS.map((x) => ({ valor: x.codigo, texto: x.nombre }))],
+          ajustes.idioma,
+          (v) => {
+            ajustes.idioma = v;
+            guardarAjustes();
+            // Se recarga para volver a construir la interfaz en el idioma nuevo.
+            window.setTimeout(() => location.reload(), 400);
+          },
+        ),
+        "Menús, botones y avisos. El idioma en que escribe la IA se elige en Inteligencia artificial.",
+      ),
+    ),
     seccion(
       "Tema",
       segmentado(
@@ -148,6 +168,49 @@ function ia(): HTMLElement {
           ),
         ),
         h("div", { class: "form-grid form-grid-3" }, campo("Temperatura", temp, "No aplica a Claude Code"), campo("Máx. tokens de salida", max), campo("Palabras de contexto previo", ctx, "Texto anterior al cursor que se envía")),
+      ),
+      seccion(
+        "Idioma de escritura",
+        (() => {
+          const otro = h("input", { class: "input", placeholder: "Otro idioma o variante (p. ej. «español de Canarias», «Scots»)" });
+          const conocido = ["novela", "interfaz", ...IDIOMAS_ESCRITURA.map((x) => x.nombre)].includes(ajustes.idiomaIA);
+          if (!conocido) otro.value = ajustes.idiomaIA;
+          const resumen = h("p", { class: "muted" });
+          const pintarResumen = () => (resumen.textContent = `La IA escribirá en: ${idiomaEscritura(estadoNovelaIdioma())}`);
+          const sel = select(
+            [
+              { valor: "novela", texto: "El idioma de cada novela (Planificar → Idioma de la prosa)" },
+              { valor: "interfaz", texto: "El idioma de la interfaz" },
+              ...IDIOMAS_ESCRITURA.map((x) => ({ valor: x.nombre, texto: x.nombre === x.ingles ? x.nombre : `${x.nombre} — ${x.ingles}` })),
+              { valor: "otro", texto: "Otro…" },
+            ],
+            conocido ? ajustes.idiomaIA : "otro",
+            (v) => {
+              otro.hidden = v !== "otro";
+              if (v !== "otro") ajustes.idiomaIA = v;
+              else if (otro.value.trim()) ajustes.idiomaIA = otro.value.trim();
+              else otro.focus();
+              guardarAjustes();
+              pintarResumen();
+            },
+          );
+          otro.hidden = conocido;
+          otro.addEventListener("input", () => {
+            if (otro.value.trim()) ajustes.idiomaIA = otro.value.trim();
+            guardarAjustes();
+            pintarResumen();
+          });
+          const forzar = h("input", { type: "checkbox", checked: ajustes.forzarIdioma });
+          forzar.addEventListener("change", () => ((ajustes.forzarIdioma = forzar.checked), guardarAjustes()));
+          pintarResumen();
+          return h(
+            "div",
+            { class: "field" },
+            campo("La IA escribe en", h("div", { class: "stack-sm" }, sel, otro)),
+            h("label", { class: "check" }, forzar, h("span", null, "Forzar el idioma: ordenar a la IA que escriba solo en este idioma aunque el contexto, los prompts o tu mensaje estén en otro")),
+            resumen,
+          );
+        })(),
       ),
       seccion(
         "Palabras y clichés prohibidos",
@@ -392,7 +455,7 @@ function actualizaciones(): HTMLElement {
         return;
       }
       instalada = true;
-      const fecha = info.fecha ? new Date(info.fecha).toLocaleDateString("es", { day: "numeric", month: "short", year: "numeric" }) : "";
+      const fecha = info.fecha ? new Date(info.fecha).toLocaleDateString(locale(), { day: "numeric", month: "short", year: "numeric" }) : "";
       version.textContent = corto(info.commit);
       origen.textContent = `Rama ${info.rama}${fecha ? ` · ${fecha}` : ""}`;
       mostrar(estadoActualizacion());
@@ -438,4 +501,12 @@ function actualizaciones(): HTMLElement {
   });
   requestAnimationFrame(() => vigia.observe(document.body, { childList: true, subtree: true }));
   return cont;
+}
+
+function estadoNovelaIdioma(): string | undefined {
+  try {
+    return novela().meta.idioma;
+  } catch {
+    return undefined;
+  }
 }

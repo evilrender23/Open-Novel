@@ -267,6 +267,7 @@ function desdeMarkdown(nombre: string, texto: string): Record<string, string> {
   return archivos;
 }
 
+// i18n-ignorar: contenido de la novela de ejemplo, no es interfaz.
 function novelaEjemplo(): Record<string, string> {
   const meta = metaNueva("El faro de Aldara", "Open Novel");
   meta.genero = "Fantasía costera, misterio";
@@ -341,3 +342,4 @@ function novelaEjemplo(): Record<string, string> {
   archivos["novela.json"] = serializar.meta(meta);
   return archivos;
 }
+// i18n-fin

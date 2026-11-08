@@ -4,7 +4,7 @@
 // recarga la novela cuando el agente modifica archivos.
 
 import { api, iniciarEventos, nuevoId, suscribir, type FinClaude } from "../api";
-import { ajustes, guardarAjustes, instruccionEvitar } from "../ajustes";
+import { ajustes, guardarAjustes, idiomaEscritura, instruccionEvitar } from "../ajustes";
 import { borrarSesionAgente, estado, guardarSesionAgente, novela, recargarDesdeDisco, vaciarGuardado } from "../estado";
 import { markdown } from "../markdown";
 import { buscarEscena, todasLasEscenas, type ElementoAgente, type SesionAgente } from "../modelo";
@@ -356,6 +356,7 @@ async function lanzar(s: SesionAgente, texto: string, repintar: () => void, alCa
     "La aplicación recarga los archivos automáticamente cuando los editas. Responde siempre en el idioma del usuario.",
     u ? `El autor tiene abierta la escena «${u.escena.titulo}» (archivo escenas/${u.escena.id}.md), capítulo ${u.numCapitulo} «${u.capitulo.titulo}».` : "",
     `La novela tiene ${todasLasEscenas(n.meta).length} escenas y ${n.codex.size} entradas en el Codex.`,
+    ajustes.forzarIdioma ? `IDIOMA OBLIGATORIO: toda la prosa, los resúmenes y las entradas del Codex que escribas en los archivos van en ${idiomaEscritura(n.meta.idioma)}, aunque el resto esté en otro idioma.` : "",
     instruccionEvitar() ? `Al escribir prosa, nombres o entradas del Codex:\n${instruccionEvitar()}` : "",
   ]
     .filter(Boolean)
@@ -569,7 +570,7 @@ function resumenEntrada(nombre: string, entrada: any): string {
 function pintarElemento(el: ElementoAgente, plegadas: Set<string>, repintar: () => void): HTMLElement {
   switch (el.tipo) {
     case "usuario":
-      return h("div", { class: "msg msg-user" }, h("div", { class: "bubble" }, el.texto));
+      return h("div", { class: "msg msg-user" }, h("div", { class: "bubble", attrs: { translate: "no" } }, el.texto));
     case "texto":
       return h("div", { class: "ag-text" }, markdown(el.texto));
     case "pensamiento": {

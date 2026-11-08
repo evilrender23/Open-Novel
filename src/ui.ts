@@ -1,6 +1,8 @@
 // Utilidades de interfaz: construcción segura del DOM (sin innerHTML), iconos,
 // avisos, diálogos, menús contextuales y popovers con el lenguaje visual de Hermes.
 
+import { locale } from "./i18n";
+
 export type Child = Node | string | number | null | undefined | false;
 
 type Props<K extends keyof HTMLElementTagNameMap> = Partial<
@@ -429,12 +431,12 @@ export function autoAltura(t: HTMLTextAreaElement, max = 400): void {
 export function fechaCorta(ms: number): string {
   const d = new Date(ms);
   const hoy = new Date();
-  if (d.toDateString() === hoy.toDateString()) return d.toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" });
-  return d.toLocaleDateString("es", { day: "numeric", month: "short", year: d.getFullYear() === hoy.getFullYear() ? undefined : "numeric" });
+  if (d.toDateString() === hoy.toDateString()) return d.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleDateString(locale(), { day: "numeric", month: "short", year: d.getFullYear() === hoy.getFullYear() ? undefined : "numeric" });
 }
 
 export function num(n: number): string {
-  return n.toLocaleString("es");
+  return n.toLocaleString(locale());
 }
 
 /** Spinner de glifos (como el `glyph-spinner` de Hermes). */

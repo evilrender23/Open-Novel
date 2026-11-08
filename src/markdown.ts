@@ -19,7 +19,7 @@ export function inline(texto: string): Node[] {
 }
 
 export function markdown(texto: string, cls = "md"): HTMLElement {
-  const raiz = h("div", { class: cls });
+  const raiz = h("div", { class: cls, attrs: { translate: "no" } });
   const lineas = texto.replace(/\r\n/g, "\n").split("\n");
   let i = 0;
   while (i < lineas.length) {

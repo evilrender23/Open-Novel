@@ -3,6 +3,7 @@
 import { borrarTexto, estado, guardarMeta, guardarTexto, novela } from "./estado";
 import { actoNuevo, capituloNuevo, escenaNueva, todosLosCapitulos, type Acto, type Capitulo, type Escena } from "./modelo";
 import { confirmar, pedirTexto } from "./ui";
+import { t } from "./i18n";
 
 export function ubicarCapitulo(id: string): { acto: Acto; capitulo: Capitulo; i: number } | undefined {
   for (const acto of novela().meta.actos) {
@@ -22,7 +23,7 @@ export function ubicarEscena(id: string): { capitulo: Capitulo; escena: Escena; 
 export function nuevaEscena(capituloId: string, despuesDe?: string, titulo?: string): Escena {
   const u = ubicarCapitulo(capituloId);
   if (!u) throw new Error("Capítulo no encontrado");
-  const e = escenaNueva(titulo ?? `Escena ${u.capitulo.escenas.length + 1}`);
+  const e = escenaNueva(titulo ?? t(`Escena ${u.capitulo.escenas.length + 1}`));
   const i = despuesDe ? u.capitulo.escenas.findIndex((x) => x.id === despuesDe) : -1;
   if (i >= 0) u.capitulo.escenas.splice(i + 1, 0, e);
   else u.capitulo.escenas.push(e);
@@ -33,7 +34,7 @@ export function nuevaEscena(capituloId: string, despuesDe?: string, titulo?: str
 export function duplicarEscena(id: string): Escena | undefined {
   const u = ubicarEscena(id);
   if (!u) return;
-  const copia: Escena = { ...structuredClone(u.escena), id: escenaNueva().id, titulo: `${u.escena.titulo} (copia)` };
+  const copia: Escena = { ...structuredClone(u.escena), id: escenaNueva().id, titulo: `${u.escena.titulo} ${t("(copia)")}` };
   u.capitulo.escenas.splice(u.i + 1, 0, copia);
   guardarTexto(copia.id, novela().textos.get(id) ?? "");
   guardarMeta();
@@ -92,7 +93,7 @@ export function desplazarEscena(id: string, delta: number): void {
 export function nuevoCapitulo(actoId: string, despuesDe?: string): Capitulo {
   const acto = novela().meta.actos.find((a) => a.id === actoId);
   if (!acto) throw new Error("Acto no encontrado");
-  const c = capituloNuevo(`Capítulo ${todosLosCapitulos(novela().meta).length + 1}`);
+  const c = capituloNuevo(t(`Capítulo ${todosLosCapitulos(novela().meta).length + 1}`));
   const i = despuesDe ? acto.capitulos.findIndex((x) => x.id === despuesDe) : -1;
   if (i >= 0) acto.capitulos.splice(i + 1, 0, c);
   else acto.capitulos.push(c);
@@ -138,8 +139,8 @@ export function desplazarCapitulo(id: string, delta: number): void {
 export function nuevoActo(): Acto {
   const meta = novela().meta;
   const romanos = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
-  const a = actoNuevo(`Acto ${romanos[meta.actos.length] ?? meta.actos.length + 1}`);
-  a.capitulos[0].titulo = `Capítulo ${todosLosCapitulos(meta).length + 1}`;
+  const a = actoNuevo(t(`Acto ${romanos[meta.actos.length] ?? meta.actos.length + 1}`));
+  a.capitulos[0].titulo = t(`Capítulo ${todosLosCapitulos(meta).length + 1}`);
   meta.actos.push(a);
   guardarMeta();
   return a;

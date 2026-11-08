@@ -2,7 +2,7 @@
 // (esquema, Codex, escena o capítulo actual, notas) elegido por el usuario.
 
 import { nuevoId } from "../api";
-import { ajustes, instruccionEvitar } from "../ajustes";
+import { ajustes, instruccionEvitar, instruccionIdioma } from "../ajustes";
 import { chipModelo } from "../componentes";
 import { contextoCodex, esquema, promptActivo, renderizar, variablesBase } from "../contexto";
 import { borrarChat, estado, guardarChat, guardarNota, guardarTexto, novela } from "../estado";
@@ -181,7 +181,7 @@ function hilo(c: Chat, alCambiarLista: () => void): { el: HTMLElement; repintar:
     }
     const p = promptActivo(n, "chat");
     const vars = { ...variablesBase(n, estado.escenaActual), contexto: construirContexto(c) };
-    const sistema = [renderizar(p.sistema, vars), instruccionEvitar(), renderizar(p.usuario, vars)].filter(Boolean).join("\n\n").trim();
+    const sistema = [renderizar(p.sistema, vars), instruccionEvitar(), instruccionIdioma(n.meta.idioma), renderizar(p.usuario, vars)].filter(Boolean).join("\n\n").trim();
     const modelo = c.modelo || p.modelo || ajustes.modelos.chat;
     const estadoVivo = { gen: null as unknown as Generacion, texto: "", repintar };
     const gen = generar({
@@ -349,7 +349,7 @@ function burbuja(c: Chat, m: MensajeChat, i: number): HTMLElement {
   const accion = (a: string, ic: Parameters<typeof icon>[0], tip: string) =>
     h("button", { type: "button", class: "msg-act", dataset: { accion: a, id: m.id }, attrs: { "aria-label": tip, "data-tip": tip } }, icon(ic));
   if (m.rol === "usuario")
-    return h("div", { class: "msg msg-user" }, h("div", { class: "bubble" }, m.texto), h("div", { class: "msg-actions" }, accion("copiar", "copy", "Copiar"), accion("borrar", "trash", "Borrar")));
+    return h("div", { class: "msg msg-user" }, h("div", { class: "bubble", attrs: { translate: "no" } }, m.texto), h("div", { class: "msg-actions" }, accion("copiar", "copy", "Copiar"), accion("borrar", "trash", "Borrar")));
   const ultimo = i === c.mensajes.length - 1;
   return h(
     "div",
