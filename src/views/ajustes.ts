@@ -2,7 +2,7 @@
 // función, Claude Code CLI y biblioteca.
 
 import { api, nuevoId } from "../api";
-import { ACENTOS, ajustes, guardarAjustes, modelosDisponibles, PROVEEDORES_BASE, type Funcion, type Proveedor, type TipoProveedor } from "../ajustes";
+import { ACENTOS, PALABRAS_EVITAR_DEFECTO, ajustes, guardarAjustes, modelosDisponibles, PROVEEDORES_BASE, type Funcion, type Proveedor, type TipoProveedor } from "../ajustes";
 import { chips, segmentado } from "../componentes";
 import { generar, listarModelos } from "../ia";
 import { actualizarEstado } from "../shell";
@@ -148,6 +148,25 @@ function ia(): HTMLElement {
           ),
         ),
         h("div", { class: "form-grid form-grid-3" }, campo("Temperatura", temp, "No aplica a Claude Code"), campo("Máx. tokens de salida", max), campo("Palabras de contexto previo", ctx, "Texto anterior al cursor que se envía")),
+      ),
+      seccion(
+        "Palabras y clichés prohibidos",
+        h("p", { class: "muted" }, "Se añaden al prompt de sistema de todo lo que genera la IA: beats, reescrituras, Codex, chat, resúmenes, tus prompts personalizados y el agente. Una entrada por línea o separadas por comas; las líneas con # son comentarios."),
+        (() => {
+          const t = h("textarea", { class: "textarea mono", rows: 12 });
+          t.value = ajustes.palabrasEvitar;
+          t.addEventListener("input", () => ((ajustes.palabrasEvitar = t.value), guardarAjustes()));
+          return h(
+            "div",
+            { class: "field" },
+            t,
+            btn("Restaurar la lista por defecto", { icon: "refresh", variant: "ghost", size: "xs", onclick: () => {
+              t.value = PALABRAS_EVITAR_DEFECTO;
+              ajustes.palabrasEvitar = t.value;
+              guardarAjustes();
+            } }),
+          );
+        })(),
       ),
       seccion(
         "Proveedores",

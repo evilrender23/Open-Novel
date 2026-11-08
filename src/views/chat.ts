@@ -2,7 +2,7 @@
 // (esquema, Codex, escena o capítulo actual, notas) elegido por el usuario.
 
 import { nuevoId } from "../api";
-import { ajustes } from "../ajustes";
+import { ajustes, instruccionEvitar } from "../ajustes";
 import { chipModelo } from "../componentes";
 import { contextoCodex, esquema, promptActivo, renderizar, variablesBase } from "../contexto";
 import { borrarChat, estado, guardarChat, guardarNota, guardarTexto, novela } from "../estado";
@@ -181,7 +181,7 @@ function hilo(c: Chat, alCambiarLista: () => void): { el: HTMLElement; repintar:
     }
     const p = promptActivo(n, "chat");
     const vars = { ...variablesBase(n, estado.escenaActual), contexto: construirContexto(c) };
-    const sistema = `${renderizar(p.sistema, vars)}\n\n${renderizar(p.usuario, vars)}`.trim();
+    const sistema = [renderizar(p.sistema, vars), instruccionEvitar(), renderizar(p.usuario, vars)].filter(Boolean).join("\n\n").trim();
     const modelo = c.modelo || p.modelo || ajustes.modelos.chat;
     const estadoVivo = { gen: null as unknown as Generacion, texto: "", repintar };
     const gen = generar({

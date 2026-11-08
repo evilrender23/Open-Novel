@@ -2,7 +2,7 @@
 // aceptar / reintentar / pedir cambios / descartar. La usan el editor, el
 // Codex y la planificación.
 
-import { nombreModelo, type Funcion } from "./ajustes";
+import { instruccionEvitar, nombreModelo, type Funcion } from "./ajustes";
 import { conCodex, promptActivo, renderizar, variablesBase, type Variables } from "./contexto";
 import { novela } from "./estado";
 import { generar, modeloPara, type Generacion, type Mensaje } from "./ia";
@@ -35,7 +35,7 @@ export function preparar(accion: AccionPrompt, vars: Variables, escenaId?: strin
   const p = promptActivo(n, accion);
   const v = conCodex(n, { ...variablesBase(n, escenaId), ...vars }, escenaId);
   return {
-    sistema: renderizar(p.sistema, v),
+    sistema: [renderizar(p.sistema, v), instruccionEvitar()].filter(Boolean).join("\n\n"),
     usuario: renderizar(p.usuario, v),
     modelo: modelo || modeloPara(FUNCION_DE[accion], p.modelo),
     nombrePrompt: p.nombre,

@@ -4,7 +4,7 @@
 // recarga la novela cuando el agente modifica archivos.
 
 import { api, iniciarEventos, nuevoId, suscribir, type FinClaude } from "../api";
-import { ajustes, guardarAjustes } from "../ajustes";
+import { ajustes, guardarAjustes, instruccionEvitar } from "../ajustes";
 import { borrarSesionAgente, estado, guardarSesionAgente, novela, recargarDesdeDisco, vaciarGuardado } from "../estado";
 import { markdown } from "../markdown";
 import { buscarEscena, todasLasEscenas, type ElementoAgente, type SesionAgente } from "../modelo";
@@ -356,6 +356,7 @@ async function lanzar(s: SesionAgente, texto: string, repintar: () => void, alCa
     "La aplicación recarga los archivos automáticamente cuando los editas. Responde siempre en el idioma del usuario.",
     u ? `El autor tiene abierta la escena «${u.escena.titulo}» (archivo escenas/${u.escena.id}.md), capítulo ${u.numCapitulo} «${u.capitulo.titulo}».` : "",
     `La novela tiene ${todasLasEscenas(n.meta).length} escenas y ${n.codex.size} entradas en el Codex.`,
+    instruccionEvitar() ? `Al escribir prosa, nombres o entradas del Codex:\n${instruccionEvitar()}` : "",
   ]
     .filter(Boolean)
     .join("\n");

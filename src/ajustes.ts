@@ -32,6 +32,8 @@ export interface Ajustes {
   palabrasContexto: number;
   /** Lo lee también el backend (update.rs) para decidir si compila solo las versiones nuevas. */
   actualizacionesAuto: boolean;
+  /** Nombres, palabras y frases típicas de la IA que nunca debe usar (una por línea). */
+  palabrasEvitar: string;
 }
 
 export const PROVEEDORES_BASE: Record<TipoProveedor, { nombre: string; url: string; modelos: string[]; necesitaClave: boolean }> = {
@@ -43,7 +45,40 @@ export const PROVEEDORES_BASE: Record<TipoProveedor, { nombre: string; url: stri
   compatible: { nombre: "Compatible con OpenAI", url: "http://localhost:1234/v1", modelos: [], necesitaClave: false },
 };
 
+/** Bloque para el prompt de sistema: se añade a TODA generación (prompts propios incluidos). */
+export function instruccionEvitar(): string {
+  const lineas = (ajustes.palabrasEvitar ?? "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith("#"));
+  if (!lineas.length) return "";
+  return `PROHIBIDO usar estas palabras, nombres y frases (ni variantes, ni plurales, ni traducciones). Son muletillas que delatan texto escrito por una IA. Si hace falta un nombre propio nuevo, invéntalo sobrio y coherente con el mundo de la novela, nunca de esta lista ni de su estilo; si hace falta una imagen, busca una concreta y propia:
+${lineas.map((l) => `- ${l}`).join("\n")}`;
+}
+
 export const ACENTOS = ["#0053fd", "#6d2ebf", "#1f8a65", "#c25e2c", "#cf2d56", "#4c7f8c", "#17171a"];
+
+/** Muletillas, nombres y clichés que delatan texto escrito por IA. */
+export const PALABRAS_EVITAR_DEFECTO = [
+  "# Nombres inventados típicos de la IA",
+  "Valdoria, Eldoria, Aldoria, Eldrin, Vess, Vesper, Kael, Kaelen, Elara, Lyra, Lyria, Seraphina, Thorne, Zephyr, Aria, Nyx, Eira, Aethel, Elysia, Caelum, Sylas, Orin, Mira Voss, Voss, Ashcroft, Blackwood, Nightshade",
+  "# Palabras comodín",
+  "ecos, eco de, tapiz, sinfonía de, danza de, crisol, mosaico de, testamento de, palpable, etéreo, inefable, susurro de, resonar, reverberar, ozono, petricor, cacofonía, vorágine, umbral (como metáfora), entramado, amalgama, faro de esperanza, en el corazón de, un mar de",
+  "# Frases hechas",
+  "un escalofrío le recorrió la espalda",
+  "soltó un aliento que no sabía que estaba conteniendo",
+  "no pudo evitar sonreír",
+  "algo cambió en su interior",
+  "el peso de sus palabras",
+  "una mezcla de miedo y determinación",
+  "sus ojos brillaron con",
+  "el silencio se hizo denso",
+  "el aire estaba cargado de",
+  "una sonrisa que no le llegó a los ojos",
+  "como si el mundo contuviera la respiración",
+  "y por primera vez en mucho tiempo",
+  "no era solo X, era Y",
+].join("\n");
 
 function predeterminados(): Ajustes {
   return {
@@ -62,6 +97,7 @@ function predeterminados(): Ajustes {
     agente: { modelo: "sonnet", permisos: "acceptEdits", esfuerzo: "" },
     palabrasContexto: 1500,
     actualizacionesAuto: true,
+    palabrasEvitar: PALABRAS_EVITAR_DEFECTO,
   };
 }
 
