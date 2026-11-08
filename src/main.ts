@@ -19,6 +19,7 @@ import { vistaExportar } from "./views/exportar";
 import { vistaNotas } from "./views/notas";
 import { abrirMetadatos, vistaPlanificar } from "./views/planificar";
 import { vistaPrompts } from "./views/prompts";
+import { iniciarActualizador } from "./updater";
 
 const app = document.getElementById("app")!;
 
@@ -192,6 +193,7 @@ window.addEventListener("beforeunload", () => void vaciarGuardado());
 async function iniciar(): Promise<void> {
   await cargarAjustes();
   await iniciarEventos();
+  iniciarActualizador();
   const ultima = localStorage.getItem("ultima-novela");
   if (ultima) await abrir(ultima);
   else await irBiblioteca();

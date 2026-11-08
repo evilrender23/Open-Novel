@@ -8,6 +8,7 @@ import { ajustes, guardarAjustes, esOscuro, nombreModelo } from "./ajustes";
 import { alCambiar, estado, hayPendientes, novela, palabrasEscena, type Cambio, type Vista } from "./estado";
 import { palabrasHoy, palabrasNovela, todasLasEscenas, TIPOS_CODEX } from "./modelo";
 import { btn, h, icon, kbd, num, type IconName } from "./ui";
+import { montarAviso } from "./updater";
 
 export interface ResultadoVista {
   titulo: string;
@@ -102,6 +103,7 @@ export function montarShell(contenedor: HTMLElement): void {
     ),
     nav,
     lateral,
+    avisoActualizacion(),
     h(
       "div",
       { class: "sb-foot" },
@@ -216,4 +218,11 @@ export function actualizarEstado(): void {
 /** Icono del tipo de una entrada del Codex. */
 export function iconoTipo(tipo: string): IconName {
   return TIPOS_CODEX.find((t) => t.valor === tipo)?.icono ?? "tag";
+}
+
+/** Hueco del aviso de actualización (compilando / lista para reiniciar). */
+export function avisoActualizacion(): HTMLElement {
+  const el = h("div", { class: "upd-card", hidden: true, role: "status" });
+  montarAviso(el);
+  return el;
 }

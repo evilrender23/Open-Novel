@@ -30,6 +30,8 @@ export interface Ajustes {
   claudeRuta: string;
   agente: { modelo: string; permisos: string; esfuerzo: string };
   palabrasContexto: number;
+  /** Lo lee también el backend (update.rs) para decidir si compila solo las versiones nuevas. */
+  actualizacionesAuto: boolean;
 }
 
 export const PROVEEDORES_BASE: Record<TipoProveedor, { nombre: string; url: string; modelos: string[]; necesitaClave: boolean }> = {
@@ -59,6 +61,7 @@ function predeterminados(): Ajustes {
     claudeRuta: "",
     agente: { modelo: "sonnet", permisos: "acceptEdits", esfuerzo: "" },
     palabrasContexto: 1500,
+    actualizacionesAuto: true,
   };
 }
 

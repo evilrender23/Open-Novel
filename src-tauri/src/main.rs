@@ -4,6 +4,7 @@
 mod biblioteca;
 mod claude;
 mod llm;
+mod update;
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
@@ -17,6 +18,7 @@ struct Estado {
     procesos: claude::Procesos,
     llm: llm::Llm,
     datos_app: PathBuf,
+    actualizador: update::Actualizador,
 }
 
 // ── Ajustes globales (JSON opaco que gestiona el frontend) ────────────────
@@ -117,6 +119,45 @@ fn externo_leer(ruta: String) -> Result<String, String> {
     std::fs::read_to_string(&ruta).map_err(|e| format!("No se pudo leer {ruta}: {e}"))
 }
 
+// ── Actualizaciones desde main ───────────────────────────────────────────
+
+#[tauri::command]
+fn update_info() -> Option<update::VersionInstalada> {
+    update::version_instalada()
+}
+
+#[tauri::command]
+fn update_channel() -> update::Canal {
+    update::canal()
+}
+
+#[tauri::command]
+fn update_state(estado: State<Estado>) -> update::Estado {
+    estado.actualizador.estado()
+}
+
+/// Busca en segundo plano; el resultado llega con el evento `actualizacion`.
+#[tauri::command]
+fn update_check(estado: State<Estado>, install: bool) {
+    estado.actualizador.buscar_ahora(install);
+}
+
+/// Cierra la app para que el instalador cambie a la versión nueva y la vuelva a abrir.
+#[tauri::command]
+fn update_apply(app: AppHandle, estado: State<Estado>) {
+    estado.actualizador.aplicar();
+    app.exit(0);
+}
+
+/// Actualizaciones automáticas activadas en ajustes.json (por defecto, sí).
+fn auto_actualizar(datos_app: &std::path::Path) -> bool {
+    std::fs::read_to_string(datos_app.join("ajustes.json"))
+        .ok()
+        .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
+        .and_then(|v| v.get("actualizacionesAuto").and_then(serde_json::Value::as_bool))
+        .unwrap_or(true)
+}
+
 // ── Claude Code ──────────────────────────────────────────────────────────
 
 #[tauri::command]
@@ -189,11 +230,15 @@ fn main() {
                         .unwrap_or_else(|_| datos_app.clone())
                         .join("Open Novel")
                 });
+            let actualizador = update::Actualizador::default();
+            let carpeta = datos_app.clone();
+            actualizador.vigilar(app.handle().clone(), move || auto_actualizar(&carpeta));
             app.manage(Estado {
                 biblioteca: Biblioteca::nueva(raiz),
                 procesos: claude::Procesos::default(),
                 llm: llm::Llm::nuevo()?,
                 datos_app,
+                actualizador,
             });
             Ok(())
         })
@@ -220,7 +265,17 @@ fn main() {
             llm_stream,
             llm_get,
             llm_cancelar,
+            update_info,
+            update_channel,
+            update_state,
+            update_check,
+            update_apply,
         ])
-        .run(tauri::generate_context!())
-        .expect("no se pudo iniciar Open Novel");
+        .build(tauri::generate_context!())
+        .expect("no se pudo iniciar Open Novel")
+        .run(|app, event| {
+            if let tauri::RunEvent::Exit = event {
+                app.state::<Estado>().actualizador.al_salir();
+            }
+        });
 }

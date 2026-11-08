@@ -8,8 +8,19 @@ import { generar, listarModelos } from "../ia";
 import { actualizarEstado } from "../shell";
 import { btn, campo, confirmar, errMsg, h, icon, menu, modal, select, spinner } from "../ui";
 import { reiniciarInfoClaude } from "./agente";
+import {
+  alActualizar,
+  aplicarActualizacion,
+  buscarActualizaciones,
+  canal,
+  corto,
+  describir,
+  estadoActualizacion,
+  versionInstalada,
+  type EstadoActualizacion,
+} from "../updater";
 
-type Pestana = "apariencia" | "ia" | "claude" | "biblioteca";
+type Pestana = "apariencia" | "ia" | "claude" | "biblioteca" | "actualizaciones";
 
 export function abrirAjustes(inicial: Pestana = "apariencia"): void {
   const m = modal("Ajustes", { wide: true });
@@ -24,12 +35,13 @@ export function abrirAjustes(inicial: Pestana = "apariencia"): void {
     { id: "ia", texto: "Inteligencia artificial", icono: "sparkle" },
     { id: "claude", texto: "Claude Code", icono: "terminal" },
     { id: "biblioteca", texto: "Biblioteca", icono: "library" },
+    { id: "actualizaciones", texto: "Actualizaciones", icono: "refresh" },
   ];
   const ir = (p: Pestana) => {
     nav.replaceChildren(
       ...pestanas.map((t) => h("button", { type: "button", class: `nav-item${t.id === p ? " is-active" : ""}`, onclick: () => ir(t.id) }, icon(t.icono), h("span", null, t.texto))),
     );
-    cuerpo.replaceChildren(p === "apariencia" ? apariencia() : p === "ia" ? ia() : p === "claude" ? claude() : biblioteca());
+    cuerpo.replaceChildren(p === "apariencia" ? apariencia() : p === "ia" ? ia() : p === "claude" ? claude() : p === "biblioteca" ? biblioteca() : actualizaciones());
   };
   ir(inicial);
 }
@@ -319,4 +331,92 @@ function biblioteca(): HTMLElement {
     ),
     seccion("Acerca de", h("p", null, "Open Novel 0.1 — entorno de escritura de novelas de código abierto (MIT), inspirado en NovelCrafter. Interfaz basada en el sistema de diseño de Hermes.")),
   );
+}
+
+function actualizaciones(): HTMLElement {
+  const version = h("strong", null, "…");
+  const origen = h("p", { class: "muted" });
+  const estado = h("p", { class: "upd-status" });
+  const barra = h("span", { class: "meter meter-wide", hidden: true }, h("span", { class: "meter-fill" }));
+  const buscar = btn("Buscar actualizaciones", { icon: "refresh", variant: "secondary", size: "sm", disabled: true, onclick: () => {
+    buscar.disabled = true;
+    buscarActualizaciones(true).catch((e: unknown) => {
+      estado.textContent = errMsg(e);
+      buscar.disabled = false;
+    });
+  } });
+  const reiniciar = btn("Reiniciar y actualizar", { icon: "refresh", variant: "primary", size: "sm", onclick: () => void aplicarActualizacion() });
+  reiniciar.hidden = true;
+  const auto = h("input", { type: "checkbox", checked: ajustes.actualizacionesAuto });
+  auto.addEventListener("change", () => {
+    ajustes.actualizacionesAuto = auto.checked;
+    guardarAjustes();
+  });
+
+  let instalada = false;
+  const mostrar = (e: EstadoActualizacion) => {
+    estado.textContent = describir(e);
+    estado.classList.toggle("is-error", e.estado === "error");
+    const ocupado = e.estado === "buscando" || e.estado === "compilando";
+    buscar.disabled = !instalada || ocupado || e.estado === "lista";
+    reiniciar.hidden = e.estado !== "lista";
+    barra.hidden = e.estado !== "compilando";
+    if (e.estado === "compilando") (barra.firstChild as HTMLElement).style.width = `${e.total ? (e.paso / e.total) * 100 : 4}%`;
+  };
+
+  Promise.all([versionInstalada(), canal()]).then(
+    ([info, c]) => {
+      if (c === "desarrollo" || !info) {
+        version.textContent = "desarrollo";
+        origen.textContent = "Compilación de desarrollo (tauri dev o compilada a mano): no se actualiza sola. Instálala con el comando de abajo para recibir las actualizaciones de main.";
+        auto.disabled = true;
+        return;
+      }
+      instalada = true;
+      const fecha = info.fecha ? new Date(info.fecha).toLocaleDateString("es", { day: "numeric", month: "short", year: "numeric" }) : "";
+      version.textContent = corto(info.commit);
+      origen.textContent = `Rama ${info.rama}${fecha ? ` · ${fecha}` : ""}`;
+      mostrar(estadoActualizacion());
+    },
+    (e: unknown) => (origen.textContent = errMsg(e)),
+  );
+  const parar = alActualizar(mostrar);
+  const cont = h(
+    "div",
+    null,
+    seccion(
+      "Versión instalada",
+      h("p", null, "Commit ", version),
+      origen,
+      h("div", { class: "row-gap upd-row" }, buscar, reiniciar),
+      estado,
+      barra,
+    ),
+    seccion(
+      "Automáticas",
+      h("label", { class: "check" }, auto, h("span", null, "Buscar y compilar solas las versiones nuevas de main (al minuto de abrir y cada 6 horas)")),
+      h(
+        "p",
+        { class: "muted" },
+        "Cuando hay commits nuevos en main, el instalador los compila en segundo plano mientras escribes. Al terminar aparece «Reiniciar y actualizar»; si cierras la app sin más, la próxima vez que la abras ya será la nueva. Tus novelas, ajustes y claves no se tocan.",
+      ),
+    ),
+    seccion(
+      "Instalar o reinstalar",
+      h("p", { class: "muted" }, "macOS y Linux:"),
+      h("pre", { class: "ag-pre" }, "curl -fsSL https://raw.githubusercontent.com/evilrender23/Open-Novel/main/instalar.sh | bash"),
+      h("p", { class: "muted" }, "Windows (PowerShell):"),
+      h("pre", { class: "ag-pre" }, "irm https://raw.githubusercontent.com/evilrender23/Open-Novel/main/instalar.ps1 | iex"),
+      h("p", { class: "muted" }, "Registro del progreso en registro/actualizacion.log y salida de la compilación en registro/compilacion.log, dentro de la carpeta de instalación."),
+    ),
+  );
+  // Al cambiar de pestaña el nodo sale del DOM: se deja de escuchar.
+  const vigia = new MutationObserver(() => {
+    if (!cont.isConnected) {
+      parar();
+      vigia.disconnect();
+    }
+  });
+  requestAnimationFrame(() => vigia.observe(document.body, { childList: true, subtree: true }));
+  return cont;
 }

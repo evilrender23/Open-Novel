@@ -26,6 +26,42 @@ Otros: paleta de comandos **⌘K**, atajos ⌘1…⌘8, ⌘, (ajustes), ⌘⇧F 
 claro/oscuro/sistema con acentos, tipografía del editor configurable, estadísticas
 de palabras diarias y objetivo de la novela.
 
+## Instalación (se actualiza sola desde `main`)
+
+Un solo comando descarga el código de la rama `main`, lo compila en tu equipo y lo
+instala. Si falta algo para compilar (Git, Node.js 20.19+, Rust y, según el sistema,
+las Build Tools de C++, las herramientas de Xcode o WebKitGTK) lo instala solo,
+avisando de que es una dependencia.
+
+**macOS y Linux:**
+
+```
+curl -fsSL https://raw.githubusercontent.com/evilrender23/Open-Novel/main/instalar.sh | bash
+```
+
+**Windows** (PowerShell):
+
+```
+irm https://raw.githubusercontent.com/evilrender23/Open-Novel/main/instalar.ps1 | iex
+```
+
+| | Código y caché | App |
+|---|---|---|
+| macOS | `~/Library/Application Support/OpenNovel/codigo` | `/Applications/Open Novel.app` (o `~/Applications`) |
+| Linux | `~/.local/share/OpenNovel/codigo` | `~/.local/share/OpenNovel/app` + `open-novel` en `~/.local/bin` |
+| Windows | `%LOCALAPPDATA%\OpenNovel\codigo` | `%LOCALAPPDATA%\OpenNovel\app` (menú Inicio) |
+
+Opciones: `--repo`, `--rama`, `--destino`, `--bin` (Windows: `-Repo`, `-Rama`, `-Destino`).
+
+**Actualizaciones:** la app instalada guarda en `version.json` el commit del que salió.
+Un minuto después de abrirse y cada 6 horas hace `git fetch` en `codigo/`; si hay commits
+nuevos en `main`, relanza el instalador en segundo plano, que compila la versión nueva
+mientras escribes (progreso en la barra lateral). Al terminar aparece **Reiniciar y
+actualizar**; si cierras la app sin más, la próxima vez ya abre la nueva. En
+**Ajustes → Actualizaciones** ves el commit instalado, puedes buscar a mano y desactivar
+las automáticas. Registro en `registro/actualizacion.log` y `registro/compilacion.log`.
+Tus novelas y ajustes no se tocan. Publicar una versión es solo hacer push a `main`.
+
 ## Formato en disco
 
 Cada novela es una carpeta legible (puedes versionarla con Git o sincronizarla):

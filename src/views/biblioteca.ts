@@ -6,7 +6,7 @@ import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
 import { api, nuevoId, type ResumenNovela } from "../api";
 import { capituloNuevo, entradaNueva, escenaNueva, metaNueva, serializar, type Acto, type EntradaCodex, type MetaNovela } from "../modelo";
-import { arrastrable } from "../shell";
+import { arrastrable, avisoActualizacion } from "../shell";
 import { btn, campo, confirmar, errMsg, fechaCorta, h, icon, menu, modal, num, select, toast, vacio } from "../ui";
 
 type Plantilla = "vacia" | "tres-actos" | "ejemplo";
@@ -184,6 +184,7 @@ export function pantallaBiblioteca(contenedor: HTMLElement, alAbrir: (carpeta: s
         h("div", { class: "sb-head" }, h("div", { class: "sb-brand" }, h("span", { class: "sb-mark" }, icon("book")), h("span", null, "Open Novel"))),
         h("nav", { class: "nav" }, h("button", { type: "button", class: "nav-item is-active" }, icon("library"), h("span", null, "Biblioteca"))),
         h("div", { class: "grow" }),
+        avisoActualizacion(),
         h("div", { class: "sb-foot" }, h("span", { class: "muted sb-version" }, "v0.1 · código abierto"), h("span", { class: "grow" }), btn(null, { icon: "settings", variant: "ghost", size: "icon-xs", title: "Ajustes", onclick: alAjustes })),
       ),
       h(
