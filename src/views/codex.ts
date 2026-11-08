@@ -10,7 +10,7 @@ import { buscarEscena, entradaNueva, TIPOS_CODEX, todasLasEscenas, type EntradaC
 import { Propuesta } from "../propuesta";
 import { iconoTipo, type ResultadoVista } from "../shell";
 import { ACENTOS } from "../ajustes";
-import { btn, confirmar, h, icon, menu, num, pedirTexto, select, vacio } from "../ui";
+import { btn, confirmar, conMenu, h, icon, menu, num, pedirTexto, select, vacio, type ItemMenu } from "../ui";
 import { abrirEscena } from "./escribir";
 
 let filtro = "";
@@ -39,12 +39,15 @@ export function vistaCodex(): ResultadoVista {
       nodos.push(h("div", { class: "list-group" }, icon(t.icono), t.plural, h("span", { class: "list-count" }, String(grupo.length))));
       for (const e of grupo)
         nodos.push(
-          h(
-            "button",
-            { type: "button", class: `list-row${e.id === estado.entradaActual ? " is-active" : ""}`, onclick: () => seleccionar(e.id) },
-            avatar(e, "avatar-sm"),
-            h("span", { class: "list-text" }, e.nombre),
-            e.incluir === "siempre" ? icon("pin", "icon list-flag") : null,
+          conMenu(
+            h(
+              "button",
+              { type: "button", class: `list-row${e.id === estado.entradaActual ? " is-active" : ""}`, onclick: () => seleccionar(e.id) },
+              avatar(e, "avatar-sm"),
+              h("span", { class: "list-text" }, e.nombre),
+              e.incluir === "siempre" ? icon("pin", "icon list-flag") : null,
+            ),
+            () => accionesEntrada(e, seleccionar),
           ),
         );
     }
@@ -143,17 +146,69 @@ function resumenCodex(seleccionar: (id: string) => void, nueva: (t: TipoCodex) =
         "div",
         { class: "cx-grid" },
         ...grupo.map((e) =>
-          h(
-            "button",
-            { type: "button", class: "cx-tile", onclick: () => seleccionar(e.id) },
-            h("div", { class: "cx-tile-head" }, avatar(e), h("span", { class: "cx-tile-name" }, e.nombre), e.incluir === "siempre" ? icon("pin", "icon list-flag") : null),
-            h("p", { class: "cx-tile-desc" }, e.descripcion.slice(0, 160) || "Sin descripción."),
+          conMenu(
+            h(
+              "button",
+              { type: "button", class: "cx-tile", onclick: () => seleccionar(e.id) },
+              h("div", { class: "cx-tile-head" }, avatar(e), h("span", { class: "cx-tile-name" }, e.nombre), e.incluir === "siempre" ? icon("pin", "icon list-flag") : null),
+              h("p", { class: "cx-tile-desc" }, e.descripcion.slice(0, 160) || "Sin descripción."),
+            ),
+            () => accionesEntrada(e, seleccionar),
           ),
         ),
       ),
     );
   }
   return h("div", { class: "page" }, ...secciones);
+}
+
+/** Acciones de una entrada del Codex (menú contextual y botón «…»). */
+export function accionesEntrada(e: EntradaCodex, seleccionar: (id: string) => void): ItemMenu[] {
+  const n = novela();
+  const tipoActual = e.tipo;
+  return [
+    { texto: "Abrir", icono: "codex", accion: () => seleccionar(e.id) },
+    { texto: "Copiar nombre", icono: "copy", accion: () => void navigator.clipboard.writeText(e.nombre) },
+    { texto: "Duplicar", icono: "duplicate", accion: () => {
+      const copia = { ...structuredClone(e), id: entradaNueva("", e.tipo).id, nombre: `${e.nombre} (copia)`, relaciones: [], vinculos: {} };
+      guardarCodex(copia);
+      seleccionar(copia.id);
+    } },
+    { separador: true },
+    { titulo: "Tipo" },
+    ...TIPOS_CODEX.map((t) => ({
+      texto: t.texto,
+      icono: t.valor === tipoActual ? ("check" as const) : t.icono,
+      accion: () => {
+        e.tipo = t.valor;
+        guardarCodex(e);
+      },
+    })),
+    { separador: true },
+    { titulo: "Contexto de la IA" },
+    ...([
+      ["siempre", "Siempre"],
+      ["menciones", "Al mencionarse"],
+      ["nunca", "Nunca"],
+    ] as const).map(([v, t]) => ({
+      texto: t,
+      icono: e.incluir === v ? ("check" as const) : undefined,
+      accion: () => {
+        e.incluir = v;
+        guardarCodex(e);
+      },
+    })),
+    { separador: true },
+    { texto: "Eliminar entrada", icono: "trash", peligro: true, accion: async () => {
+      const usos = [...n.codex.values()].filter((x) => x.relaciones.includes(e.id)).length;
+      if (!(await confirmar("Eliminar entrada", `Se eliminará «${e.nombre}» del Codex${usos ? ` y su relación con ${usos} entrada${usos === 1 ? "" : "s"}` : ""}.`))) return;
+      await borrarCodex(e.id);
+      if (estado.entradaActual === e.id) {
+        estado.entradaActual = "";
+        seleccionar("");
+      }
+    } },
+  ];
 }
 
 function editorEntrada(e: EntradaCodex, seleccionar: (id: string) => void): HTMLElement {
@@ -264,7 +319,7 @@ function editorEntrada(e: EntradaCodex, seleccionar: (id: string) => void): HTML
         vinculo.addEventListener("change", avisar);
         const inverso = r.vinculos?.[e.id];
         const juntas = compartidas(r.id);
-        return h(
+        return conMenu(h(
           "div",
           { class: "rel-card" },
           h("button", { type: "button", class: "rel-who", onclick: () => seleccionar(r.id), attrs: { "data-tip": "Abrir entrada" } }, avatar(r, "avatar-sm")),
@@ -289,7 +344,13 @@ function editorEntrada(e: EntradaCodex, seleccionar: (id: string) => void): HTML
             r.descripcion ? h("p", { class: "rel-desc", attrs: { translate: "no" } }, r.descripcion.slice(0, 140) + (r.descripcion.length > 140 ? "…" : "")) : null,
           ),
           btn(null, { icon: "x", variant: "ghost", size: "icon-xs", title: "Quitar relación", onclick: () => desrelacionar(r) }),
-        );
+        ), () => [
+          { texto: `Abrir «${r.nombre}»`, icono: "codex", accion: () => seleccionar(r.id) },
+          { titulo: "Tipo de relación" },
+          ...sugerenciasVinculo(r).slice(0, 8).map((v) => ({ texto: v, icono: e.vinculos[r.id] === v ? ("check" as const) : undefined, accion: () => ((e.vinculos[r.id] = v), avisar(), pintarRel()) })),
+          { separador: true },
+          { texto: "Quitar relación", icono: "x", peligro: true, accion: () => desrelacionar(r) },
+        ]);
       });
 
     // Sugeridas: entradas que aparecen en las mismas escenas y aún no están relacionadas.
@@ -441,24 +502,7 @@ function editorEntrada(e: EntradaCodex, seleccionar: (id: string) => void): HTML
         variant: "ghost",
         size: "icon-sm",
         title: "Acciones de la entrada",
-        onclick: (ev) =>
-          menu(
-            [
-              { texto: "Duplicar", icono: "duplicate", accion: () => {
-                const copia = { ...structuredClone(e), id: entradaNueva("", e.tipo).id, nombre: `${e.nombre} (copia)` };
-                guardarCodex(copia);
-                seleccionar(copia.id);
-              } },
-              { separador: true },
-              { texto: "Eliminar entrada", icono: "trash", peligro: true, accion: async () => {
-                if (!(await confirmar("Eliminar entrada", `Se eliminará «${e.nombre}» del Codex.`))) return;
-                await borrarCodex(e.id);
-                estado.entradaActual = "";
-                seleccionar("");
-              } },
-            ],
-            ev.currentTarget as HTMLElement,
-          ),
+        onclick: (ev) => menu([{ texto: "Desarrollar con IA", icono: "sparkle", accion: desarrollar }, ...accionesEntrada(e, seleccionar).slice(1)], ev.currentTarget as HTMLElement),
       }),
     ),
     h(

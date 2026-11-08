@@ -306,6 +306,19 @@ export function cerrarMenu(): void {
   teclasMenu = null;
 }
 
+/** Menú contextual (clic derecho) propio para un elemento. */
+export function conMenu<T extends HTMLElement>(el: T, items: () => ItemMenu[]): T {
+  el.addEventListener("contextmenu", (e) => {
+    // En los campos de texto se deja el menú de edición del sistema (cortar, pegar, ortografía).
+    if ((e.target as HTMLElement).closest?.("input, textarea, [contenteditable]:not([contenteditable='false'])")) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const lista = items();
+    if (lista.length) menu(lista, { x: e.clientX, y: e.clientY });
+  });
+  return el;
+}
+
 /** Abre un menú en (x, y) o anclado bajo un elemento. */
 export function menu(items: ItemMenu[], pos: { x: number; y: number } | HTMLElement, opciones: { mantenerFoco?: boolean } = {}): void {
   cerrarMenu();

@@ -9,7 +9,7 @@ import { borrarSesionAgente, estado, guardarSesionAgente, novela, recargarDesdeD
 import { markdown } from "../markdown";
 import { buscarEscena, todasLasEscenas, type ElementoAgente, type SesionAgente } from "../modelo";
 import { indicarAgente, type ResultadoVista } from "../shell";
-import { btn, confirmar, errMsg, fechaCorta, h, icon, menu, select, spinner, toast, type IconName } from "../ui";
+import { btn, confirmar, conMenu, errMsg, fechaCorta, h, icon, menu, pedirTexto, select, spinner, toast, type IconName } from "../ui";
 import { openPath } from "@tauri-apps/plugin-opener";
 
 // ── Estado de la ejecución (sobrevive a cambios de vista) ────────────────
@@ -95,12 +95,34 @@ export function vistaAgente(): ResultadoVista {
     lista.replaceChildren(
       ...(sesiones.length
         ? sesiones.map((s) =>
-            h(
-              "button",
-              { type: "button", class: `list-row${s.id === estado.sesionAgente ? " is-active" : ""}`, onclick: () => abrir(s.id) },
-              ejecucion?.sesion.id === s.id ? spinner() : icon("agent"),
-              h("span", { class: "list-text" }, s.titulo),
-              h("span", { class: "list-meta" }, fechaCorta(s.modificado)),
+            conMenu(
+              h(
+                "button",
+                { type: "button", class: `list-row${s.id === estado.sesionAgente ? " is-active" : ""}`, onclick: () => abrir(s.id) },
+                ejecucion?.sesion.id === s.id ? spinner() : icon("agent"),
+                h("span", { class: "list-text" }, s.titulo),
+                h("span", { class: "list-meta" }, fechaCorta(s.modificado)),
+              ),
+              () => [
+                { texto: "Abrir", icono: "agent", accion: () => abrir(s.id) },
+                { texto: "Renombrar", icono: "edit", accion: async () => {
+                  const t = await pedirTexto("Renombrar sesión", "Título", s.titulo);
+                  if (t?.trim()) {
+                    s.titulo = t.trim();
+                    guardarSesionAgente(s);
+                    pintarLista();
+                  }
+                } },
+                { texto: "Copiar id de sesión de Claude", icono: "copy", deshabilitado: !s.sesionClaude, accion: () => void navigator.clipboard.writeText(s.sesionClaude) },
+                { separador: true },
+                { texto: "Eliminar sesión", icono: "trash", peligro: true, deshabilitado: ejecucion?.sesion.id === s.id, accion: async () => {
+                  if (!(await confirmar("Eliminar sesión", `Se eliminará el registro de «${s.titulo}».`))) return;
+                  if (estado.sesionAgente === s.id) estado.sesionAgente = "";
+                  await borrarSesionAgente(s.id);
+                  pintarLista();
+                  pintar();
+                } },
+              ],
             ),
           )
         : [h("p", { class: "panel-empty" }, "Sin sesiones.")]),

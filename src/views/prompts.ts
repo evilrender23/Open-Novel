@@ -7,7 +7,7 @@ import { conCodex, PROMPTS_INTEGRADOS, renderizar, todosLosPrompts, VARIABLES_DO
 import { borrarPrompt, estado, guardarMeta, guardarPrompt, novela } from "../estado";
 import type { AccionPrompt, Prompt } from "../modelo";
 import { type ResultadoVista } from "../shell";
-import { btn, confirmar, h, icon, modal, select, toast } from "../ui";
+import { btn, confirmar, conMenu, h, icon, modal, select, toast } from "../ui";
 
 export const ACCIONES: { valor: AccionPrompt; texto: string }[] = [
   { valor: "beat", texto: "Beat de escena" },
@@ -39,12 +39,40 @@ export function vistaPrompts(): ResultadoVista {
       nodos.push(h("div", { class: "list-group" }, a.texto));
       for (const p of grupo)
         nodos.push(
-          h(
-            "button",
-            { type: "button", class: `list-row${p.id === actual ? " is-active" : ""}`, onclick: () => ((actual = p.id), pintarLista(), pintar()) },
-            icon(p.integrado ? "prompt" : "edit"),
-            h("span", { class: "list-text" }, p.nombre),
-            activo(p) ? h("span", { class: "badge is-accent" }, "activo") : null,
+          conMenu(
+            h(
+              "button",
+              { type: "button", class: `list-row${p.id === actual ? " is-active" : ""}`, onclick: () => ((actual = p.id), pintarLista(), pintar()) },
+              icon(p.integrado ? "prompt" : "edit"),
+              h("span", { class: "list-text" }, p.nombre),
+              activo(p) ? h("span", { class: "badge is-accent" }, "activo") : null,
+            ),
+            () => [
+              { texto: "Abrir", icono: "prompt", accion: () => ((actual = p.id), pintarLista(), pintar()) },
+              { texto: "Usar para esta acción", icono: "check", deshabilitado: activo(p), accion: () => {
+                n.meta.promptsActivos[p.accion] = p.id;
+                guardarMeta("prompts");
+                pintarLista();
+                pintar();
+              } },
+              { texto: "Duplicar", icono: "duplicate", accion: () => nuevo(p) },
+              ...(p.integrado
+                ? []
+                : [
+                    { separador: true as const },
+                    { texto: "Eliminar prompt", icono: "trash" as const, peligro: true, accion: async () => {
+                      if (!(await confirmar("Eliminar prompt", `Se eliminará «${p.nombre}».`))) return;
+                      if (n.meta.promptsActivos[p.accion] === p.id) {
+                        delete n.meta.promptsActivos[p.accion];
+                        guardarMeta("prompts");
+                      }
+                      await borrarPrompt(p.id);
+                      if (actual === p.id) actual = "int-beat";
+                      pintarLista();
+                      pintar();
+                    } },
+                  ]),
+            ],
           ),
         );
     }

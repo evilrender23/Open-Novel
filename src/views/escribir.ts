@@ -33,7 +33,7 @@ import { markdown } from "../markdown";
 import { buscarEscena, contarPalabras, entradaNueva, ESTADOS, todasLasEscenas, TIPOS_CODEX, type AccionPrompt, type TipoCodex } from "../modelo";
 import { generarDirecto, Propuesta } from "../propuesta";
 import { irA, modoFoco, type ResultadoVista, actualizarEstado } from "../shell";
-import { btn, confirmar, errMsg, fechaCorta, h, icon, menu, modal, num, select, toast, vacio, type ItemMenu } from "../ui";
+import { btn, confirmar, conMenu, errMsg, fechaCorta, h, icon, menu, modal, num, select, toast, vacio, type ItemMenu } from "../ui";
 
 let editorActivo: EditorEscena | null = null;
 
@@ -882,7 +882,25 @@ class EditorEscena {
         h("span", { class: "ctx-name" }, e.nombre),
         h("span", { class: "ctx-meta" }, extra),
       );
-      return fila;
+      return conMenu(fila, () => [
+        { texto: "Ver ficha", icono: "eye", accion: () => this.verEntrada(e.id) },
+        { texto: "Abrir en el Codex", icono: "codex", accion: () => abrirEntrada(e.id) },
+        { texto: "Buscar en la escena", icono: "search", accion: () => {
+          this.buscador.abrir(false);
+          const i = document.querySelector<HTMLInputElement>(".find-input");
+          if (i) {
+            i.value = e.nombre;
+            i.dispatchEvent(new Event("input"));
+          }
+        } },
+        { separador: true },
+        { titulo: "Contexto de la IA" },
+        ...([
+          ["siempre", "Siempre"],
+          ["menciones", "Al mencionarse"],
+          ["nunca", "Nunca"],
+        ] as const).map(([v, t]) => ({ texto: t, icono: e.incluir === v ? ("check" as const) : undefined, accion: () => ((e.incluir = v), guardarCodex(e), this.refrescarPanel()) })),
+      ]);
     };
 
     const btnResumir = btn(null, { icon: "sparkle", variant: "ghost", size: "icon-xs", title: "Resumir con IA", onclick: () => void resumirEscena(this.id).then(() => this.refrescarPanel()) });

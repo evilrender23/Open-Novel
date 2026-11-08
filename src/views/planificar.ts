@@ -21,7 +21,7 @@ import { ESTADOS, TIPOS_CODEX, todasLasEscenas, type Capitulo, type Escena, type
 import { type ResultadoVista } from "../shell";
 import { ajustes } from "../ajustes";
 import { IDIOMAS_ESCRITURA } from "../i18n";
-import { btn, campo, h, icon, menu, modal, num, select, toast, vacio } from "../ui";
+import { btn, campo, conMenu, h, icon, menu, modal, num, select, toast, vacio, type ItemMenu } from "../ui";
 import { abrirEscena, resumirEscena } from "./escribir";
 
 type Modo = "cuadricula" | "esquema" | "matriz";
@@ -221,21 +221,7 @@ function tarjetaEscena(e: Escena, capId: string, i: number): HTMLElement {
   });
   const pov = n.codex.get(e.pov);
   const palabras = palabrasEscena(e.id);
-  const card = h(
-    "article",
-    { class: `scene-card is-${e.estado}`, draggable: true, dataset: { indice: String(i), id: e.id } },
-    h(
-      "div",
-      { class: "card-head" },
-      h("span", { class: "card-grip" }, icon("drag")),
-      titulo,
-      btn(null, {
-        icon: "more",
-        variant: "ghost",
-        size: "icon-xs",
-        title: "Acciones de la escena",
-        onclick: (ev) =>
-          menu(
+  const accionesTarjeta = (): ItemMenu[] =>
             [
               { texto: "Abrir en el editor", icono: "write", accion: () => abrirEscena(e.id) },
               { texto: "Resumir con IA", icono: "sparkle", accion: () => void resumirEscena(e.id) },
@@ -253,9 +239,21 @@ function tarjetaEscena(e: Escena, capId: string, i: number): HTMLElement {
               })),
               { separador: true },
               { texto: "Eliminar", icono: "trash", peligro: true, accion: () => void eliminarEscena(e.id) },
-            ],
-            ev.currentTarget as HTMLElement,
-          ),
+            ];
+  const card = h(
+    "article",
+    { class: `scene-card is-${e.estado}`, draggable: true, dataset: { indice: String(i), id: e.id } },
+    h(
+      "div",
+      { class: "card-head" },
+      h("span", { class: "card-grip" }, icon("drag")),
+      titulo,
+      btn(null, {
+        icon: "more",
+        variant: "ghost",
+        size: "icon-xs",
+        title: "Acciones de la escena",
+        onclick: (ev) => menu(accionesTarjeta(), ev.currentTarget as HTMLElement),
       }),
     ),
     resumen,
@@ -282,6 +280,7 @@ function tarjetaEscena(e: Escena, capId: string, i: number): HTMLElement {
   card.addEventListener("dblclick", (ev) => {
     if (!(ev.target as HTMLElement).matches("input, textarea")) abrirEscena(e.id);
   });
+  conMenu(card, accionesTarjeta);
   return card;
 }
 

@@ -7,7 +7,7 @@ import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { api, nuevoId, type ResumenNovela } from "../api";
 import { capituloNuevo, entradaNueva, escenaNueva, metaNueva, serializar, type Acto, type EntradaCodex, type MetaNovela } from "../modelo";
 import { arrastrable, avisoActualizacion } from "../shell";
-import { btn, campo, confirmar, errMsg, fechaCorta, h, icon, menu, modal, num, select, toast, vacio } from "../ui";
+import { btn, campo, confirmar, conMenu, errMsg, fechaCorta, h, icon, menu, modal, num, select, toast, vacio, type ItemMenu } from "../ui";
 
 type Plantilla = "vacia" | "tres-actos" | "ejemplo";
 
@@ -53,6 +53,18 @@ export function pantallaBiblioteca(contenedor: HTMLElement, alAbrir: (carpeta: s
         const palabras = ultimas.length ? stats[ultimas[ultimas.length - 1]] : 0;
         const obj = meta.objetivoPalabras ?? 0;
         const escenas = (meta.actos ?? []).reduce((s, a) => s + (a.capitulos ?? []).reduce((t, c) => t + (c.escenas?.length ?? 0), 0), 0);
+        const acciones = (): ItemMenu[] =>
+                [
+                  { texto: "Abrir", icono: "book", accion: () => alAbrir(r.carpeta) },
+                  { texto: "Mostrar en Finder", icono: "folder", accion: () => void revealItemInDir(r.ruta) },
+                  { separador: true },
+                  { texto: "Mover a la papelera", icono: "trash", peligro: true, accion: async () => {
+                    if (!(await confirmar("Eliminar novela", `«${meta.titulo || r.carpeta}» se moverá a la carpeta .papelera de la biblioteca.`))) return;
+                    await api.novelaEliminar(r.carpeta);
+                    toast("Novela movida a la papelera", "ok");
+                    await cargar();
+                  } },
+                ];
         const fila = h(
           "div",
           { class: "lib-row", tabIndex: 0, role: "button" },
@@ -77,24 +89,12 @@ export function pantallaBiblioteca(contenedor: HTMLElement, alAbrir: (carpeta: s
             title: "Acciones",
             onclick: (e) => {
               e.stopPropagation();
-              menu(
-                [
-                  { texto: "Abrir", icono: "book", accion: () => alAbrir(r.carpeta) },
-                  { texto: "Mostrar en Finder", icono: "folder", accion: () => void revealItemInDir(r.ruta) },
-                  { separador: true },
-                  { texto: "Mover a la papelera", icono: "trash", peligro: true, accion: async () => {
-                    if (!(await confirmar("Eliminar novela", `«${meta.titulo || r.carpeta}» se moverá a la carpeta .papelera de la biblioteca.`))) return;
-                    await api.novelaEliminar(r.carpeta);
-                    toast("Novela movida a la papelera", "ok");
-                    await cargar();
-                  } },
-                ],
-                e.currentTarget as HTMLElement,
-              );
+              menu(acciones(), e.currentTarget as HTMLElement);
             },
           }),
         );
         fila.addEventListener("click", () => alAbrir(r.carpeta));
+        conMenu(fila, acciones);
         fila.addEventListener("keydown", (e) => e.key === "Enter" && alAbrir(r.carpeta));
         return fila;
       }),

@@ -6,10 +6,12 @@ import "./styles.css";
 import { iniciarEventos } from "./api";
 import { ajustes, cargarAjustes, esOscuro, guardarAjustes } from "./ajustes";
 import { cargarIdioma, idiomaSistema, observar } from "./i18n";
-import { abrirNovela, cerrarNovela, estado, novela, vaciarGuardado, type Vista } from "./estado";
-import { todasLasEscenas, TIPOS_CODEX } from "./modelo";
+import { abrirNovela, cerrarNovela, estado, guardarCodex, guardarNota, novela, vaciarGuardado, type Vista } from "./estado";
+import { entradaNueva, todasLasEscenas, TIPOS_CODEX } from "./modelo";
 import { irA, montarShell, modoFoco, NAV, registrarVistas, iconoTipo } from "./shell";
-import { errMsg, h, icon, toast, cerrarMenu, type IconName } from "./ui";
+import { errMsg, h, icon, menu, toast, cerrarMenu, type IconName, type ItemMenu } from "./ui";
+import { nuevoId } from "./api";
+import { nuevaEscena } from "./estructura";
 import { vistaAgente } from "./views/agente";
 import { abrirAjustes } from "./views/ajustes";
 import { pantallaBiblioteca } from "./views/biblioteca";
@@ -204,13 +206,90 @@ document.addEventListener("keydown", (e) => {
 // buscar o usar los servicios del sistema. Los menús propios (editor, árbol)
 // llaman a preventDefault antes y no llegan aquí.
 document.addEventListener("contextmenu", (e) => {
-  if (e.defaultPrevented || import.meta.env.DEV) return;
+  if (e.defaultPrevented) return;
+  // ⌥ + clic derecho en desarrollo: el menú del navegador (Inspeccionar elemento).
+  if (import.meta.env.DEV && e.altKey) return;
   const destino = e.target as HTMLElement;
   if (destino.closest?.("input, textarea, [contenteditable]:not([contenteditable='false'])")) return;
-  const sel = window.getSelection();
-  if (sel && !sel.isCollapsed && sel.toString().trim()) return;
   e.preventDefault();
+  if (destino.closest?.(".modal-backdrop, .palette")) return;
+  const sel = window.getSelection()?.toString().trim() ?? "";
+  menu(menuGeneral(sel), { x: e.clientX, y: e.clientY });
 });
+
+/** Menú del clic derecho donde no hay uno más concreto. */
+function menuGeneral(sel: string): ItemMenu[] {
+  const items: ItemMenu[] = [];
+  if (sel) {
+    const corto = sel.length > 28 ? `${sel.slice(0, 26)}…` : sel;
+    items.push({ texto: "Copiar", icono: "copy", atajo: "⌘C", accion: () => void navigator.clipboard.writeText(sel) });
+    if (estado.novela) {
+      items.push({ texto: `Buscar «${corto}» en la novela`, icono: "search", accion: () => {
+        if (estado.vista !== "escribir") irA("escribir");
+        window.setTimeout(() => {
+          atajoBuscar("buscar");
+          const i = document.querySelector<HTMLInputElement>(".find-input");
+          if (i) {
+            i.value = sel;
+            i.dispatchEvent(new Event("input"));
+          }
+        }, 40);
+      } });
+      if (sel.length <= 60 && !sel.includes("\n"))
+        for (const t of TIPOS_CODEX.slice(0, 3))
+          items.push({ texto: `Crear ${t.texto.toLowerCase()} «${corto}» en el Codex`, icono: t.icono, accion: () => {
+            const x = entradaNueva(sel, t.valor);
+            guardarCodex(x);
+            abrirEntrada(x.id);
+          } });
+    }
+    items.push({ separador: true });
+  }
+  if (estado.novela) {
+    const u = todasLasEscenas(novela().meta).find((x) => x.escena.id === estado.escenaActual);
+    items.push(
+      { texto: "Ir a…", icono: "search", atajo: "⌘K", accion: () => abrirPaleta() },
+      { texto: "Buscar en el escrito", icono: "search", atajo: "⌘F", accion: () => {
+        if (estado.vista !== "escribir") irA("escribir");
+        window.setTimeout(() => atajoBuscar("buscar"), 40);
+      } },
+      { separador: true },
+      { texto: "Nueva escena", icono: "write", deshabilitado: !u, accion: () => {
+        if (!u) return;
+        const x = nuevaEscena(u.capitulo.id, u.escena.id);
+        abrirEscena(x.id);
+      } },
+      { texto: "Nueva entrada del Codex", icono: "codex", accion: () => {
+        const x = entradaNueva("Nueva entrada", "personaje");
+        guardarCodex(x);
+        abrirEntrada(x.id);
+      } },
+      { texto: "Nueva nota", icono: "note", accion: () => {
+        const nota = { id: nuevoId("n"), titulo: "", fijada: false, cuerpo: "", modificado: Date.now() };
+        guardarNota(nota);
+        estado.notaActual = nota.id;
+        irA("notas");
+      } },
+      { texto: "Rellenar el Codex desde la novela", icono: "sparkle", accion: () => (irA("codex"), abrirAutoCodex()) },
+      { separador: true },
+      { texto: "Modo foco", icono: "focus", atajo: "⇧⌘F", accion: () => modoFoco() },
+    );
+  } else {
+    items.push(
+      { texto: "Nueva novela…", icono: "plus", atajo: "⌘N", accion: () => accionesBiblioteca.nueva?.() },
+      { texto: "Importar…", icono: "import", accion: () => accionesBiblioteca.importar?.() },
+      { separador: true },
+    );
+  }
+  items.push(
+    { texto: esOscuro() ? "Tema claro" : "Tema oscuro", icono: esOscuro() ? "sun" : "moon", accion: () => {
+      ajustes.tema = esOscuro() ? "claro" : "oscuro";
+      guardarAjustes();
+    } },
+    { texto: "Ajustes…", icono: "settings", atajo: "⌘,", accion: () => abrirAjustes() },
+  );
+  return items;
+}
 
 window.addEventListener("beforeunload", () => void vaciarGuardado());
 

@@ -10,7 +10,7 @@ import { generar, type Generacion } from "../ia";
 import { markdown } from "../markdown";
 import { buscarEscena, type Chat, type MensajeChat } from "../modelo";
 import { type ResultadoVista } from "../shell";
-import { btn, confirmar, errMsg, fechaCorta, h, icon, menu, pedirTexto, spinner, toast, vacio } from "../ui";
+import { btn, confirmar, conMenu, errMsg, fechaCorta, h, icon, menu, pedirTexto, spinner, toast, vacio, type ItemMenu } from "../ui";
 
 const enCurso = new Map<string, { gen: Generacion; texto: string; repintar: () => void }>();
 
@@ -38,12 +38,15 @@ export function vistaChat(): ResultadoVista {
     lista.replaceChildren(
       ...(chats.length
         ? chats.map((c) =>
-            h(
-              "button",
-              { type: "button", class: `list-row${c.id === estado.chatActual ? " is-active" : ""}`, onclick: () => abrir(c.id) },
-              enCurso.has(c.id) ? spinner() : icon("chat"),
-              h("span", { class: "list-text" }, c.titulo),
-              h("span", { class: "list-meta" }, fechaCorta(c.modificado)),
+            conMenu(
+              h(
+                "button",
+                { type: "button", class: `list-row${c.id === estado.chatActual ? " is-active" : ""}`, onclick: () => abrir(c.id) },
+                enCurso.has(c.id) ? spinner() : icon("chat"),
+                h("span", { class: "list-text" }, c.titulo),
+                h("span", { class: "list-meta" }, fechaCorta(c.modificado)),
+              ),
+              () => accionesChat(c, () => abrir(c.id)),
             ),
           )
         : [h("p", { class: "panel-empty" }, "Sin conversaciones.")]),
@@ -302,25 +305,14 @@ function hilo(c: Chat, alCambiarLista: () => void): { el: HTMLElement; repintar:
         onclick: (ev) =>
           menu(
             [
-              { texto: "Renombrar", icono: "edit", accion: async () => {
-                const t = await pedirTexto("Renombrar conversación", "Título", c.titulo);
-                if (t) {
-                  c.titulo = t;
-                  titulo.value = t;
-                  guardarChat(c);
-                }
-              } },
-              { texto: "Exportar como nota", icono: "note", accion: () => {
-                guardarNota({ id: nuevoId("n"), titulo: c.titulo, fijada: false, modificado: Date.now(), cuerpo: c.mensajes.map((m) => `**${m.rol === "usuario" ? "Tú" : "IA"}:** ${m.texto}`).join("\n\n") });
-                toast("Guardada en Notas", "ok");
-              } },
-              { separador: true },
-              { texto: "Eliminar conversación", icono: "trash", peligro: true, accion: async () => {
-                if (!(await confirmar("Eliminar conversación", `Se eliminará «${c.titulo}».`))) return;
-                enCurso.get(c.id)?.gen.cancelar();
-                estado.chatActual = "";
-                await borrarChat(c.id);
-              } },
+              ...accionesChat(c).map((it) =>
+                "texto" in it && it.texto === "Renombrar"
+                  ? { ...it, accion: async () => {
+                      await it.accion();
+                      titulo.value = c.titulo;
+                    } }
+                  : it,
+              ),
             ],
             ev.currentTarget as HTMLElement,
           ),
@@ -365,13 +357,31 @@ function hilo(c: Chat, alCambiarLista: () => void): { el: HTMLElement; repintar:
   return { el, repintar };
 }
 
+/** Menú contextual de un mensaje: las mismas acciones que sus botones (y copiar la selección). */
+function conAcciones(el: HTMLElement): HTMLElement {
+  const iconos: Record<string, Parameters<typeof icon>[0]> = { copiar: "copy", insertar: "write", nota: "note", regenerar: "refresh", borrar: "trash" };
+  return conMenu(el, () => {
+    const sel = window.getSelection()?.toString().trim() ?? "";
+    const botones = [...el.querySelectorAll<HTMLButtonElement>(".msg-act")];
+    return [
+      ...(sel ? [{ texto: "Copiar selección", icono: "copy" as const, accion: () => void navigator.clipboard.writeText(sel) }, { separador: true as const }] : []),
+      ...botones.map((b) => ({
+        texto: b.getAttribute("data-tip") ?? "",
+        icono: iconos[b.dataset.accion ?? ""] ?? ("dot" as const),
+        peligro: b.dataset.accion === "borrar",
+        accion: () => b.click(),
+      })),
+    ];
+  });
+}
+
 function burbuja(c: Chat, m: MensajeChat, i: number): HTMLElement {
   const accion = (a: string, ic: Parameters<typeof icon>[0], tip: string) =>
     h("button", { type: "button", class: "msg-act", dataset: { accion: a, id: m.id }, attrs: { "aria-label": tip, "data-tip": tip } }, icon(ic));
   if (m.rol === "usuario")
-    return h("div", { class: "msg msg-user" }, h("div", { class: "bubble", attrs: { translate: "no" } }, m.texto), h("div", { class: "msg-actions" }, accion("copiar", "copy", "Copiar"), accion("borrar", "trash", "Borrar")));
+    return conAcciones(h("div", { class: "msg msg-user" }, h("div", { class: "bubble", attrs: { translate: "no" } }, m.texto), h("div", { class: "msg-actions" }, accion("copiar", "copy", "Copiar"), accion("borrar", "trash", "Borrar"))));
   const ultimo = i === c.mensajes.length - 1;
-  return h(
+  return conAcciones(h(
     "div",
     { class: `msg msg-ai${m.error ? " is-error" : ""}` },
     m.error ? h("div", { class: "prop-error" }, icon("alert"), h("span", null, m.texto)) : markdown(m.texto, "md"),
@@ -385,7 +395,7 @@ function burbuja(c: Chat, m: MensajeChat, i: number): HTMLElement {
       accion("borrar", "trash", "Borrar"),
       m.modelo ? h("span", { class: "msg-model" }, m.modelo.split("::")[1] ?? "") : null,
     ),
-  );
+  ));
 }
 
 function sugerencias(usar: (t: string) => void): HTMLElement {
@@ -401,4 +411,29 @@ function sugerencias(usar: (t: string) => void): HTMLElement {
     h("p", { class: "suggest-title" }, "Empieza con algo como…"),
     ...ideas.map((t) => h("button", { type: "button", class: "suggest-item", onclick: () => usar(t) }, icon("sparkle"), t)),
   );
+}
+
+/** Acciones de una conversación (menú contextual de la lista y botón «…»). */
+function accionesChat(c: Chat, abrir?: () => void): ItemMenu[] {
+  return [
+    ...(abrir ? [{ texto: "Abrir", icono: "chat" as const, accion: abrir }] : []),
+    { texto: "Renombrar", icono: "edit", accion: async () => {
+      const t = await pedirTexto("Renombrar conversación", "Título", c.titulo);
+      if (t) {
+        c.titulo = t;
+        guardarChat(c);
+      }
+    } },
+    { texto: "Exportar como nota", icono: "note", accion: () => {
+      guardarNota({ id: nuevoId("n"), titulo: c.titulo, fijada: false, modificado: Date.now(), cuerpo: c.mensajes.map((m) => `**${m.rol === "usuario" ? "Tú" : "IA"}:** ${m.texto}`).join("\n\n") });
+      toast("Guardada en Notas", "ok");
+    } },
+    { separador: true },
+    { texto: "Eliminar conversación", icono: "trash", peligro: true, accion: async () => {
+      if (!(await confirmar("Eliminar conversación", `Se eliminará «${c.titulo}».`))) return;
+      enCurso.get(c.id)?.gen.cancelar();
+      if (estado.chatActual === c.id) estado.chatActual = "";
+      await borrarChat(c.id);
+    } },
+  ];
 }

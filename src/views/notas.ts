@@ -5,7 +5,7 @@ import { borrarNota, estado, guardarNota, novela } from "../estado";
 import { markdown } from "../markdown";
 import type { Nota } from "../modelo";
 import { type ResultadoVista } from "../shell";
-import { btn, confirmar, fechaCorta, h, icon, menu, vacio } from "../ui";
+import { btn, confirmar, conMenu, fechaCorta, h, icon, menu, vacio, type ItemMenu } from "../ui";
 
 let previa = false;
 
@@ -24,12 +24,15 @@ export function vistaNotas(): ResultadoVista {
     lista.replaceChildren(
       ...(notas.length
         ? notas.map((x) =>
-            h(
-              "button",
-              { type: "button", class: `list-row list-row-2${x.id === estado.notaActual ? " is-active" : ""}`, onclick: () => abrir(x.id) },
-              icon(x.fijada ? "pin" : "note"),
-              h("span", { class: "list-stack" }, h("span", { class: "list-text" }, x.titulo || "Sin título"), h("span", { class: "list-sub" }, x.cuerpo.replace(/\s+/g, " ").slice(0, 60) || "Vacía")),
-              h("span", { class: "list-meta" }, fechaCorta(x.modificado)),
+            conMenu(
+              h(
+                "button",
+                { type: "button", class: `list-row list-row-2${x.id === estado.notaActual ? " is-active" : ""}`, onclick: () => abrir(x.id) },
+                icon(x.fijada ? "pin" : "note"),
+                h("span", { class: "list-stack" }, h("span", { class: "list-text" }, x.titulo || "Sin título"), h("span", { class: "list-sub" }, x.cuerpo.replace(/\s+/g, " ").slice(0, 60) || "Vacía")),
+                h("span", { class: "list-meta" }, fechaCorta(x.modificado)),
+              ),
+              () => accionesNota(x),
             ),
           )
         : [h("p", { class: "panel-empty" }, f ? "Sin resultados." : "Sin notas.")]),
@@ -41,6 +44,29 @@ export function vistaNotas(): ResultadoVista {
     pintarLista();
     pintar();
   };
+
+  const accionesNota = (x: Nota): ItemMenu[] => [
+    { texto: "Abrir", icono: "note", accion: () => abrir(x.id) },
+    { texto: x.fijada ? "Desfijar" : "Fijar arriba", icono: "pin", accion: () => {
+      x.fijada = !x.fijada;
+      guardarNota(x);
+      pintarLista();
+    } },
+    { texto: "Duplicar", icono: "duplicate", accion: () => {
+      const copia: Nota = { ...x, id: nuevoId("n"), titulo: `${x.titulo || "Sin título"} (copia)`, fijada: false, modificado: Date.now() };
+      guardarNota(copia);
+      abrir(copia.id);
+    } },
+    { texto: "Copiar el texto", icono: "copy", accion: () => void navigator.clipboard.writeText(x.cuerpo) },
+    { separador: true },
+    { texto: "Eliminar nota", icono: "trash", peligro: true, accion: async () => {
+      if (!(await confirmar("Eliminar nota", `Se eliminará «${x.titulo || "Sin título"}».`))) return;
+      if (estado.notaActual === x.id) estado.notaActual = "";
+      await borrarNota(x.id);
+      pintarLista();
+      pintar();
+    } },
+  ];
 
   const nueva = () => {
     const nota: Nota = { id: nuevoId("n"), titulo: "", fijada: false, cuerpo: "", modificado: Date.now() };
